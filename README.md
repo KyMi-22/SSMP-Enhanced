@@ -1,5 +1,7 @@
 # Silksong Coop｜丝之歌合作联机增强
 
+[English](README.en.md) · 简体中文
+
 Silksong Coop 是为《空洞骑士：丝之歌》小队游玩维护的整合项目。SSMP 提供联机，Coop Assist 在原生联机流程上补充进度协作、队友互助、成茧观战、队友传送和外观设置。适配基线为游戏 **1.0.30000** 和 **SSMP 0.4.142**。
 
 当前交付为 **`0.3.0-standard`**，修订 **`20261115-borrow-fix`**，联机标识 **`0.3.0-std3`**。联机前请核对各端版本及修订。发布包在 [Releases](../../releases) 下载：`SSMP-Enhanced-0.3.0-standard.zip`，解压后把 `BepInEx`、`.doorstop_version`、`doorstop_config.ini`、`winhttp.dll` 放到游戏根目录（与游戏 exe 同级）即可，包内已含 BepInEx 5.4.23.4、SSMP 0.4.142、ModMenu 与中文化、DebugMod、I18N、Modlist、UnityHelper、WavLib、皮肤加载器与 Aa轩辕体。11 套皮肤体积约 2.44 GiB，单独发布。安装与回滚细节见 [安装说明](hotreload-docs/Install.md)。
@@ -11,6 +13,10 @@ Silksong Coop 是为《空洞骑士：丝之歌》小队游玩维护的整合项
 - **共享进度与个人资源。** 入房自动同步剧情、祈愿、地图和装备解锁进度；在线继续共享祈愿、地图和装备进展。客机要主动按房主对齐普通资源时，坐长椅按 **F9**。个人念珠、念珠串、账本和当前纹章配装各自保留。
 - **成茧与剧情。** 成茧后用游戏本身的快捷地图绑定，按住查看，松开关闭。用 **↑／↓** 在自己和**同场景**存活队友之间循环；**倒地等待期间整个房间会自动提亮**（看自己的茧也一样），救援或离开后恢复原暗度，队友换图后不再跨图传输画面。剧情等待放宽触发边缘，沿用原生过场流程。
 - **队伍便利功能。** **F5** 成茧返回长椅，**F6** 选择队友传送，**F8** 安全脱困，**F10／F11／F12** 设置、前往和删除个人传送点。**F7** 打开联机体验面板，可调整快捷键、皮肤、HUD 与名字样式；快捷键可用任意键盘按键，只要互不冲突。队友传送、设置与删除传送点的过程结果都走游戏自带的发言记录。
+
+## 皮肤
+
+发布包**不含皮肤**（11 套皮肤的贴图约 2.44 GiB，超过 GitHub 单文件上限，也没有打包进来）。想换外观时，用 **Customizer 类皮肤 Mod** 效果最好：把皮肤包放进 `Hollow Knight Silksong_Data/Mods/Customizer/<皮肤名>`，皮肤加载器（`BepInEx/plugins/SkinLoader`）已经随包提供，主菜单和 F7 面板都能选择。
 
 ## 从源码构建
 
@@ -29,7 +35,7 @@ Silksong Coop 是为《空洞骑士：丝之歌》小队游玩维护的整合项
 
 **本地保留、不进仓库**：`build/`、`dist/`、`downloads/`，以及构建用的第三方快照 `upstream-*`、`modmenu-*`、`debug-*`、`i18n-source/`、`modlist-source/`。这些已经写进 `.gitignore`；构建脚本在缺少它们时会改用游戏目录里的同名文件。
 
-**发布物**：`tools/Export-Release.ps1` 生成 `dist/SSMP-Enhanced-<版本>.zip`（只含 `BepInEx` 与 doorstop 四个运行时文件，已换成本次构建的 DLL 与字体），上传到 Releases。`dist/` 里的更新包与完整包留在本地：完整包的主体是 11 套皮肤的贴图（`Hollow Knight Silksong_Data/Mods/Customizer`，约 2.44 GiB），超过 GitHub 单文件 2 GiB 的限制，需要单独分批发布或另找托管。
+**发布物**：`tools/Export-Release.ps1` 生成 `dist/SSMP-Enhanced-<版本>.zip`（只含 `BepInEx` 与 doorstop 四个运行时文件，已换成本次构建的 DLL 与字体），上传到 Releases。`dist/` 里的更新包与完整包留在本地：完整包的主体是 11 套皮肤贴图（`Hollow Knight Silksong_Data/Mods/Customizer`，约 2.44 GiB），皮肤不随本项目发布，用户可自行安装 Customizer 类皮肤包。
 
 ## 开发原则
 
