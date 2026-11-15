@@ -12,13 +12,13 @@
 | UnityDoorstop | 4.4.1 | LGPL-2.1 | [NeighTools/UnityDoorstop](https://github.com/NeighTools/UnityDoorstop) | 否 |
 | DebugMod | 1.1.2 | 见上游仓库 | HK Speedrunning | 否 |
 | I18N / Modlist | 1.1.1 / 0.3.1 | 见上游仓库 | silksong-modding | 否 |
-| Aa轩辕体（AaXuanYuanTi-2.ttf） | 2 | 需单独确认再分发授权 | Aa 字库 | 否，见 [assets/Fonts/README.md](assets/Fonts/README.md) |
+| Aa轩辕体（AaXuanYuanTi-2.ttf） | 2 | 需单独确认再分发授权 | Aa 字库 | 源码仓库不含，随 Releases 的发布包分发 |
 | 皮肤与 FieryHornet 过场资源 | 11 套 | 各自作者授权 | 随完整包分发，不在仓库 | 否 |
 
 ## 发布时要注意
 
-- **完整包不再上传 GitHub。** 它包含约 2.4 GiB 的 `Hollow Knight Silksong_Data`（游戏本体资源）以及 SSMP 等第三方二进制，既有版权问题，也超过 GitHub Release 单文件 2 GiB 的上限。Release 只放更新包（约 10 MiB，仅模组文件、字体与文档）。
-- 若要发布包含 SSMP/ModMenu/DebugMod 的整合包，需要同时满足各项目的授权（LGPL 组件要附授权文本与源码获取方式），并确保不含游戏本体文件。
+- **完整包不再上传 GitHub。** 它含 11 套皮肤（`Hollow Knight Silksong_Data/Mods/Customizer`，约 2.44 GiB），超过 GitHub Release 单文件 2 GiB 的上限；需要的话拆成多个分卷或另找托管。主发布包 `SSMP-Enhanced-<版本>.zip` 约 13 MiB。
+- 发布包内已含 SSMP/ModMenu/DebugMod 等二进制，按各自授权随包分发；仓库里保留了授权说明与上游来源，LGPL 组件的源码获取方式见上表链接。
 - 皮肤、WebM 等素材需要在发布说明里标明来源与授权，或只随本地整合包分发。
 
 ## 本项目的游戏基线

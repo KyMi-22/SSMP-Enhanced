@@ -6,11 +6,11 @@
 
 ## 安装与回滚
 
-干净游戏：把完整包的 BepInEx、Hollow Knight Silksong_Data、doorstop_config.ini、winhttp.dll 合并到游戏根目录，与 Hollow Knight Silksong.exe 同级。Docs、Sources、Rollback、Manifest.json 是资料，无需放入游戏。
+干净游戏：从 Releases 下载 `SSMP-Enhanced-0.3.0-standard.zip`，把包内的 `BepInEx`、`.doorstop_version`、`doorstop_config.ini`、`winhttp.dll` 放到游戏根目录，与 Hollow Knight Silksong.exe 同级。包内已含 BepInEx、SSMP、ModMenu、DebugMod、中文本地化、Modlist 与字体，不含游戏本体文件，游戏版本需为 1.0.30000。
 
-已有完整合作版：把更新包 BepInEx 合并到游戏根目录，替换 SSMP/Silksong.CoopAssist.dll。更新包包含相同的 Fonts/AaXuanYuanTi-2.ttf。不要删除个人配置、皮肤和存档。同步目录内嵌 DLL，不另装 Python 或 JSON。
+已有合作版：用同一份 `SSMP-Enhanced-0.3.0-standard.zip` 的 `BepInEx` 覆盖到游戏根目录即可，包内已带同一份 `Fonts/AaXuanYuanTi-2.ttf`。不要删除个人配置、皮肤和存档。同步目录内嵌 DLL，不另装 Python 或 JSON。
 
-需要回滚时，所有端一起使用 Rollback 里对应的一份：`CoopAssist-0.3.0-standard-20261115-borrow-flow.zip` 只含上一修订的 DLL，解压覆盖到游戏根目录即可回到上一版；`Silksong-Coop-0.3.0-preview-update.zip` 回到更早的预览版。结清借款和待发退款后再回滚。
+需要回滚时，所有端一起换回上一版的 `SSMP-Enhanced-<版本>.zip`，覆盖 `BepInEx` 即可。内部更新包的 `Rollback/` 里也保留了上一修订的 DLL，可作为单文件回退。先让各端结清借款和待发退款，再一起更换版本。
 
 ## 加入与同步
 

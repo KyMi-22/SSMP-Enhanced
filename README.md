@@ -2,7 +2,7 @@
 
 Silksong Coop 是为《空洞骑士：丝之歌》小队游玩维护的整合项目。SSMP 提供联机，Coop Assist 在原生联机流程上补充进度协作、队友互助、成茧观战、队友传送和外观设置。适配基线为游戏 **1.0.30000** 和 **SSMP 0.4.142**。
 
-当前交付为 **`0.3.0-standard`**，修订 **`20261115-borrow-fix`**，联机标识 **`0.3.0-std3`**。联机前请核对各端版本及修订。安装包在 [Releases](../../releases) 中下载：已有合作版用更新包（内含上一修订的 DLL，可一键退回），干净游戏请先装好 BepInEx 与 SSMP 再用更新包。安装位置和回滚步骤见 [安装说明](hotreload-docs/Install.md)。
+当前交付为 **`0.3.0-standard`**，修订 **`20261115-borrow-fix`**，联机标识 **`0.3.0-std3`**。联机前请核对各端版本及修订。发布包在 [Releases](../../releases) 下载：`SSMP-Enhanced-0.3.0-standard.zip`，解压后把 `BepInEx`、`.doorstop_version`、`doorstop_config.ini`、`winhttp.dll` 放到游戏根目录（与游戏 exe 同级）即可，包内已含 BepInEx 5.4.23.4、SSMP 0.4.142、ModMenu 与中文化、DebugMod、I18N、Modlist、UnityHelper、WavLib、皮肤加载器与 Aa轩辕体。11 套皮肤体积约 2.44 GiB，单独发布。安装与回滚细节见 [安装说明](hotreload-docs/Install.md)。
 
 ## 当前玩法
 
@@ -29,7 +29,7 @@ Silksong Coop 是为《空洞骑士：丝之歌》小队游玩维护的整合项
 
 **本地保留、不进仓库**：`build/`、`dist/`、`downloads/`，以及构建用的第三方快照 `upstream-*`、`modmenu-*`、`debug-*`、`i18n-source/`、`modlist-source/`。这些已经写进 `.gitignore`；构建脚本在缺少它们时会改用游戏目录里的同名文件。
 
-**发布物**：`dist/` 里的更新包上传到 Releases，完整包因包含游戏本体文件（约 2.4 GiB）既不适合公开分发，也超过 GitHub 单文件 2 GiB 的限制，只留本地。
+**发布物**：`tools/Export-Release.ps1` 生成 `dist/SSMP-Enhanced-<版本>.zip`（只含 `BepInEx` 与 doorstop 四个运行时文件，已换成本次构建的 DLL 与字体），上传到 Releases。`dist/` 里的更新包与完整包留在本地：完整包的主体是 11 套皮肤的贴图（`Hollow Knight Silksong_Data/Mods/Customizer`，约 2.44 GiB），超过 GitHub 单文件 2 GiB 的限制，需要单独分批发布或另找托管。
 
 ## 开发原则
 
@@ -43,6 +43,8 @@ Silksong Coop 是为《空洞骑士：丝之歌》小队游玩维护的整合项
 
 [当前迭代简报](Iteration-Brief-0.3.0-standard.md) 汇总修改历史、已知边界与实机验收清单。[验证记录](hotreload-docs/Validation-0.3.0-standard.md) 区分自动化检查与已有的联机日志。当前修订已通过构建和回归；借款到账、成茧提亮等改动仍待逐项联机验收。
 
-开发入口：[构建](tools/Build.ps1) · [全量回归](tools/Test.ps1) · [原生接口检查](tools/Audit.ps1) · [更新包](tools/Export-Update.ps1) · [完整包](tools/Export-Package.ps1)。
+开发入口：[构建](tools/Build.ps1) · [全量回归](tools/Test.ps1) · [原生接口检查](tools/Audit.ps1) · [发布包](tools/Export-Release.ps1) · [更新包](tools/Export-Update.ps1) · [完整包](tools/Export-Package.ps1)。
 
-第三方依赖、版本与授权见 [THIRD-PARTY.md](THIRD-PARTY.md)。
+## 授权
+
+本仓库的源码、测试、工具与文档使用 [MIT 许可](LICENSE)。发布包里附带的第三方组件（SSMP、BepInEx、ModMenu、DebugMod、字体、皮肤等）各自保留原授权，版本与来源见 [THIRD-PARTY.md](THIRD-PARTY.md)。
