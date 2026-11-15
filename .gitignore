@@ -1,0 +1,40 @@
+# Local build output, release staging and downloaded archives. Rebuild with tools/Build.ps1,
+# repackage with tools/Export-Update.ps1 and tools/Export-Package.ps1.
+/build/
+/dist/
+/downloads/
+*.log
+
+# Third-party binaries and sources used only by the local build. The build scripts read them
+# when present and otherwise fall back to the installed game directory, so they stay out of git.
+/upstream-source/
+/upstream-release/
+/modmenu-source/
+/modmenu-release/
+/debug-source/
+/debug-release/
+/i18n-source/
+/modlist-source/
+
+# One-off workspace migration record: local paths, not part of the mod.
+/Migration-*.json
+
+# Raw run logs from friends' machines. Validation documents stay tracked; these logs carry
+# in-game nicknames and are only useful while a report is being written.
+/hotreload-docs/Logs-*.md
+
+# The bundled font is a third-party asset. Install the coop package (it ships the file under
+# BepInEx/plugins/SSMP/Fonts) or drop it here; see assets/Fonts/README.md.
+/assets/Fonts/*.ttf
+/assets/Fonts/*.otf
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.swp

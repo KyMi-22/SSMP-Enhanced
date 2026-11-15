@@ -1,0 +1,14 @@
+{
+  "Version": "0.2.4",
+  "BaseSkinPacks": ["GhostOfPharloom", "VampireHornet", "XJY"],
+  "AddedSkinPacks": [
+    {"Folder":"SteelSong","SourceFolder":"SteelSong","Name":"SteelSong","NexusId":1373,"Url":"https://www.nexusmods.com/hollowknightsilksong/mods/1373"},
+    {"Folder":"StarsNSparkles","SourceFolder":"StarsNSparkles Cohesive Colors-653-1-0-1766869339","Name":"Stars n Sparkles - Cohesive Colors","NexusId":653,"Url":"https://www.nexusmods.com/hollowknightsilksong/mods/653"},
+    {"Folder":"FieryHornet","SourceFolder":"FieryHornet","Name":"Wisp Hornet / FieryHornet","NexusId":1237,"Url":"https://www.nexusmods.com/hollowknightsilksong/mods/1237"},
+    {"Folder":"Phantomish","SourceFolder":"Phantom'ish skin — копия","Name":"Phantomi'sh skin REWORK","NexusId":1282,"Url":"https://www.nexusmods.com/hollowknightsilksong/mods/1282"},
+    {"Folder":"ShadowHornetYellowSilk","SourceFolder":"Shadow Hornet Yellow Silk","Name":"Shadow Hornet - Yellow Silk","NexusId":1177,"Url":"https://www.nexusmods.com/hollowknightsilksong/mods/1177"},
+    {"Folder":"CuteHornet","SourceFolder":"CuteHornet","Name":"Cute Hornet","NexusId":203,"Url":"https://www.nexusmods.com/hollowknightsilksong/mods/203"},
+    {"Folder":"FiendlordsPureVessel","SourceFolder":"Fiendlords PureVessel","Name":"Fiendlord's Pure Vessel","NexusId":992,"Url":"https://www.nexusmods.com/hollowknightsilksong/mods/992"},
+    {"Folder":"MaidHornet","SourceFolder":"MaidHornet","Name":"Maid Hornet","NexusId":1017,"Url":"https://www.nexusmods.com/hollowknightsilksong/mods/1017"}
+  ]
+}
