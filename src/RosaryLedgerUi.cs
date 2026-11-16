@@ -13,6 +13,8 @@ namespace Silksong.CoopAssist
         Texture2D ledgerPaper;
         Font ledgerFont;
         GUIStyle ledgerWindow, ledgerText, ledgerTitle, ledgerEdit, ledgerButton;
+        GUIStyle dialogWindow, dialogText;
+        Texture2D dialogPaper;
         bool EconomyOverlayOpen => ledgerOpen || (WalletReady && RosaryConnected && (purchase != null || rosaryAsks.Count != 0));
 
         bool OpenRosaryLedger()
@@ -99,11 +101,35 @@ namespace Silksong.CoopAssist
         // The loan amount is always the shortfall at ask time; the waiting stage shows the stored amount instead.
         int BorrowAmount(Purchase current) => Mathf.Max(0, current.Price - SpendableRosaries);
 
+        // Plain nearly-opaque paper behind the borrow dialogs: the default window skin let the shop show through.
+        void InitDialogUi()
+        {
+            if (dialogWindow != null) return;
+            dialogPaper = new Texture2D(4, 4, TextureFormat.RGBA32, false);
+            var pixels = new Color[16];
+            for (int i = 0; i < pixels.Length; i++) pixels[i] = new Color(.075f, .07f, .065f, .97f);
+            dialogPaper.SetPixels(pixels);
+            dialogPaper.Apply(false, true);
+            dialogWindow = new GUIStyle(GUI.skin.window) {
+                font = GUI.skin.font, fontSize = 16, padding = new RectOffset(16, 16, 26, 14)
+            };
+            dialogWindow.normal.background = dialogWindow.onNormal.background = dialogPaper;
+            dialogWindow.hover.background = dialogWindow.onHover.background = dialogPaper;
+            dialogWindow.active.background = dialogWindow.onActive.background = dialogPaper;
+            dialogWindow.normal.textColor = dialogWindow.onNormal.textColor = new Color(.98f, .92f, .80f);
+            dialogText = new GUIStyle(GUI.skin.label) { font = GUI.skin.font, fontSize = 16, wordWrap = true };
+            dialogText.normal.textColor = Color.white;
+        }
+
+        void DialogLine(string text) => GUILayout.Label(text, dialogText);
+
         void CenterDialog(int id, float height, string title, Action body)
         {
-            float width = Mathf.Min(460, Screen.width - 40);
+            InitDialogUi();
+            float width = Mathf.Min(500, Screen.width - 40);
             float h = Mathf.Min(height, Screen.height - 60);
-            GUI.ModalWindow(id, new Rect((Screen.width - width) / 2, (Screen.height - h) / 2, width, h), _ => body(), title);
+            GUI.ModalWindow(id, new Rect((Screen.width - width) / 2, (Screen.height - h) / 2, width, h),
+                _ => body(), title, dialogWindow);
         }
 
         bool DrawBorrowDialog()
@@ -115,9 +141,9 @@ namespace Silksong.CoopAssist
                 CenterDialog(BorrowDialogId, 190, "队友想借念珠", () =>
                 {
                     var peer = api.ClientManager.GetPlayer(ask.Peer);
-                    GUILayout.Label((peer?.Username ?? "队友") + " 想借 " + ask.Amount + " 念珠。");
-                    if (!string.IsNullOrEmpty(ask.Label)) GUILayout.Label("用途：" + ask.Label);
-                    GUILayout.Label("同意后你的念珠会现在扣掉，对方记账还你。");
+                    DialogLine((peer?.Username ?? "队友") + " 想借 " + ask.Amount + " 念珠。");
+                    if (!string.IsNullOrEmpty(ask.Label)) DialogLine("用途：" + ask.Label);
+                    DialogLine("同意后你的念珠会现在扣掉，对方记账还你。");
                     GUILayout.BeginHorizontal();
                     if (GUILayout.Button("借给他（Enter）")) AnswerRosaryAsk(ask, true);
                     if (GUILayout.Button("拒绝（Esc）")) AnswerRosaryAsk(ask, false);
@@ -131,9 +157,9 @@ namespace Silksong.CoopAssist
             {
                 CenterDialog(BorrowDialogId, 210, "念珠不足", () =>
                 {
-                    GUILayout.Label("商品：" + current.Name);
-                    GUILayout.Label("价格 " + current.Price + " · 现有 " + SpendableRosaries + " · 还差 " + BorrowAmount(current) + " 念珠");
-                    GUILayout.Label("要向队友借 " + BorrowAmount(current) + " 念珠吗？");
+                    DialogLine("商品：" + current.Name);
+                    DialogLine("价格 " + current.Price + " · 现有 " + SpendableRosaries + " · 还差 " + BorrowAmount(current) + " 念珠");
+                    DialogLine("要向队友借 " + BorrowAmount(current) + " 念珠吗？");
                     GUILayout.BeginHorizontal();
                     if (GUILayout.Button("借款（Enter）")) ConfirmBorrow();
                     if (GUILayout.Button("返回商店（Esc）")) DeclineBorrow();
@@ -147,24 +173,24 @@ namespace Silksong.CoopAssist
                 if (borrowCursor >= peers.Count) borrowCursor = Mathf.Max(0, peers.Count - 1);
                 CenterDialog(BorrowDialogId, Mathf.Min(420, 170 + Mathf.Max(1, peers.Count) * 34), "选择借钱的队友", () =>
                 {
-                    GUILayout.Label("商品：" + current.Name);
-                    GUILayout.Label("价格 " + current.Price + " · 现有 " + SpendableRosaries + " · 借款 " + BorrowAmount(current) + " 念珠");
-                    if (peers.Count == 0) GUILayout.Label("没有可以借款的队友。");
+                    DialogLine("商品：" + current.Name);
+                    DialogLine("价格 " + current.Price + " · 现有 " + SpendableRosaries + " · 借款 " + BorrowAmount(current) + " 念珠");
+                    if (peers.Count == 0) DialogLine("没有可以借款的队友。");
                     for (int i = 0; i < peers.Count; i++)
                     {
                         var peer = peers[i];
                         var row = (i == borrowCursor ? "▶ " : "    ") + peer.Username + (peer.IsInLocalScene ? "（同图）" : "（异图）");
                         if (GUILayout.Button(row, GUILayout.Height(30))) { borrowCursor = i; AskRosaries(peer, RosaryMode.Loan); }
                     }
-                    GUILayout.Label("↑／↓ 选择　Enter 确认　Esc 返回商店");
+                    DialogLine("↑／↓ 选择　Enter 确认　Esc 返回商店");
                     if (GUILayout.Button("返回商店（Esc）")) DeclineBorrow();
                 });
                 return true;
             }
             CenterDialog(BorrowDialogId, 170, "等待队友同意", () =>
             {
-                GUILayout.Label("已向 " + LenderName(current.Peer) + " 借 " + current.Amount + " 念珠，等待同意…");
-                GUILayout.Label("对方同意后会自动买下这件商品并扣款。");
+                DialogLine("已向 " + LenderName(current.Peer) + " 借 " + current.Amount + " 念珠，等待同意…");
+                DialogLine("对方同意后会自动买下这件商品并扣款。");
                 if (GUILayout.Button("取消借款")) CancelRosaryPurchase();
             });
             return true;
@@ -350,6 +376,7 @@ namespace Silksong.CoopAssist
         void DestroyRosaryUi()
         {
             if (ledgerPaper != null) Destroy(ledgerPaper);
+            if (dialogPaper != null) Destroy(dialogPaper);
             if (ledgerFont != null) Destroy(ledgerFont);
         }
     }

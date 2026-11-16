@@ -233,6 +233,9 @@ namespace Silksong.CoopAssist
             TickRosaries();
             TickRosaryDialog();
             TickAssistHotkeys();
+            // Every mod window, and DebugMod's panels, needs the game pointer; the game hides it during play.
+            PointerControl.Tick(ledgerOpen || optionsOpen || travelPickerOpen || bindingCapture != null ||
+                purchase != null || rosaryAsks.Count > 0 || PointerControl.DebugMenuOpen);
             TickCocoonView();
             TickEnhancements();
             TickSharedMaps();

@@ -43,7 +43,12 @@ namespace Silksong.CoopAssist
         }
         static IEnumerator SkipPickerPause(){yield break;}
         static void BeforePickerCursor(ref bool __0)
-        {if(Instance!=null && (Instance.travelPickerOpen || Instance.optionsOpen))__0=true;}
+        {
+            if (Instance == null) return;
+            if (Instance.travelPickerOpen || Instance.optionsOpen || Instance.ledgerOpen || PointerControl.DebugMenuOpen)
+                __0 = true;
+        }
+
 
         void OpenTravelPicker()
         {
