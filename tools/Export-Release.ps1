@@ -29,6 +29,7 @@ $name="SSMP-Enhanced-$Version"
 if(-not $OutputPath){$OutputPath=Join-Path $root "dist/$name.zip"}
 $OutputPath=[IO.Path]::GetFullPath($OutputPath)
 if((Test-Path -LiteralPath $OutputPath) -and -not $Force){throw "Output already exists: $OutputPath (pass -Force to replace)"}
+if(Test-Path -LiteralPath $OutputPath){Remove-Item -LiteralPath $OutputPath -Force}
 
 # Only the runtime files a player drops next to the game executable; no docs, no rollback, no game data.
 $required=@('BepInEx','.doorstop_version','doorstop_config.ini','winhttp.dll')
