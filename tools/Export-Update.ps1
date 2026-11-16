@@ -28,13 +28,13 @@ $files=@{
     'Rollback/CoopAssist-0.2.9-grand-gate-maps.zip'=Join-Path $root 'build/CoopAssist-0.2.9-grand-gate-maps.zip'
 }
 $priorUpdate=Join-Path $root 'dist/Silksong-Coop-0.3.0-preview-update.zip'
-if($Version -eq '0.3.0-standard' -and (Test-Path -LiteralPath $priorUpdate -PathType Leaf)){
+if($Version -like '*-standard' -and (Test-Path -LiteralPath $priorUpdate -PathType Leaf)){
     $files['Rollback/Silksong-Coop-0.3.0-preview-update.zip']=$priorUpdate
 }
 # The DLL of the revision this one replaces, so a bad build can be stepped back from in one unzip.
-$priorRevision=Get-ChildItem -LiteralPath (Join-Path $root 'build') -Filter 'CoopAssist-0.3.0-standard-*.zip' -File -ErrorAction SilentlyContinue |
+$priorRevision=Get-ChildItem -LiteralPath (Join-Path $root 'build') -Filter 'CoopAssist-*-standard-*.zip' -File -ErrorAction SilentlyContinue |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
-if($Version -eq '0.3.0-standard' -and $priorRevision){
+if($Version -like '*-standard' -and $priorRevision){
     $files['Rollback/'+$priorRevision.Name]=$priorRevision.FullName
 }
 foreach($source in $files.Values){

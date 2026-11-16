@@ -1,4 +1,4 @@
-param([string]$GameRoot='D:\Game\Hollow Knight Silksong',[string]$ExpectedVersion='0.3.0-standard',[string]$ExpectedNetworkVersion='0.3.0-std3')
+param([string]$GameRoot='D:\Game\Hollow Knight Silksong',[string]$ExpectedVersion='0.3.1-standard',[string]$ExpectedNetworkVersion='0.3.1-std3')
 $ErrorActionPreference='Stop'
 $taskRoot=Split-Path -Parent $PSScriptRoot
 $nativePath=Join-Path $GameRoot 'BepInEx\plugins\SSMP\SSMP.dll'
@@ -53,7 +53,7 @@ try {
     $metadata=$plugin.CustomAttributes | Where-Object {$_.AttributeType.FullName -eq 'BepInEx.BepInPlugin'}
     $numericVersion=[version]($ExpectedVersion -split '-',2)[0]
     if([version]$metadata.ConstructorArguments[2].Value -ne $numericVersion){throw 'Unexpected BepInEx plugin version'}
-    if($ExpectedVersion -eq '0.3.0-standard' -and $metadata.ConstructorArguments[1].Value -cne 'Silksong Coop Assist (Standard)'){throw 'Unexpected BepInEx plugin name'}
+    if($ExpectedVersion -like '*-standard' -and $metadata.ConstructorArguments[1].Value -cne 'Silksong Coop Assist (Standard)'){throw 'Unexpected BepInEx plugin name'}
     "Passed hurt retry, stun mapping, timing and decode/apply bindings. Release $ExpectedVersion, BepInEx $numericVersion and both SSMP addons $ExpectedNetworkVersion verified. Static check only."
 }finally{$native.Dispose();$assist.Dispose()}
 

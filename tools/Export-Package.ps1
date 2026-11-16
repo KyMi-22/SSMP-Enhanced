@@ -72,13 +72,13 @@ $previewRollback=Join-Path $taskRoot 'build/CoopAssist-0.2.9-grand-gate-maps.zip
 if(-not (Test-Path -LiteralPath $previewRollback -PathType Leaf)){throw "Required rollback archive missing: $previewRollback"}
 $replacements['Rollback/CoopAssist-0.2.9-grand-gate-maps.zip']=$previewRollback
 $priorUpdate=Join-Path $taskRoot 'dist/Silksong-Coop-0.3.0-preview-update.zip'
-if($Version -eq '0.3.0-standard' -and (Test-Path -LiteralPath $priorUpdate -PathType Leaf)){
+if($Version -like '*-standard' -and (Test-Path -LiteralPath $priorUpdate -PathType Leaf)){
     $replacements['Rollback/Silksong-Coop-0.3.0-preview-update.zip']=$priorUpdate
 }
 # Keep the same one-step-back rollback the update package carries, so Install.md is true for both packages.
-$priorRevision=Get-ChildItem -LiteralPath (Join-Path $taskRoot 'build') -Filter 'CoopAssist-0.3.0-standard-*.zip' -File -ErrorAction SilentlyContinue |
+$priorRevision=Get-ChildItem -LiteralPath (Join-Path $taskRoot 'build') -Filter 'CoopAssist-*-standard-*.zip' -File -ErrorAction SilentlyContinue |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
-if($Version -eq '0.3.0-standard' -and $priorRevision){
+if($Version -like '*-standard' -and $priorRevision){
     $replacements['Rollback/'+$priorRevision.Name]=$priorRevision.FullName
 }
 $replacements['Install.md']=Join-Path $taskRoot 'hotreload-docs/Install.md'
