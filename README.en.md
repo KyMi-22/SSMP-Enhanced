@@ -4,7 +4,7 @@ English · [简体中文](README.md)
 
 Silksong Coop is a co-op enhancement package for small-group play in *Hollow Knight: Silksong*. SSMP provides the networking; Coop Assist adds progress sharing, teammate help, cocoon spectating, teammate travel and appearance settings on top of the native flow. Target baseline: game **1.0.30000** with **SSMP 0.4.142**.
 
-Current release: **`0.3.0-standard`**, revision **`20261115-borrow-fix`**, network id **`0.3.0-std3`**. All players must run the same version and revision. Download from [Releases](../../releases): grab `SSMP-Enhanced-0.3.0-standard.zip` and drop its contents into the game folder — see below.
+Current release: **`0.3.0-standard`**, revision **`20261116-review-fixes`**, network id **`0.3.0-std3`**. All players must run the same version and revision. Download from [Releases](../../releases): grab `SSMP-Enhanced-0.3.0-standard.zip` and drop its contents into the game folder — see below.
 
 ## Install
 

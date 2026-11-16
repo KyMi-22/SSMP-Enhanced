@@ -20,6 +20,7 @@ namespace Silksong.CoopAssist
         }
         AssistBinding[] assistBindings;
         ConfigEntry<KeyCode> waypointKey, ledgerKey, setWaypointKey;
+        KeyCode appliedEscapeKey = KeyCode.F8;
         AssistBinding bindingCapture;
         bool updatingBindings;
         bool bindingsExpanded;
@@ -50,7 +51,19 @@ namespace Silksong.CoopAssist
             {
                 binding.Setting.SettingChanged+=(_,__)=>AcceptBinding(binding);
             }
-            escapeKey.SettingChanged+=(_,__)=>{NormalizeAssistBindings();ApplyBenchBinding();};
+            appliedEscapeKey = escapeKey.Value;
+            escapeKey.SettingChanged+=(_,__)=>
+            {
+                if (updatingBindings) return;
+                if (assistBindings.Any(b => b.Accepted == escapeKey.Value))
+                {
+                    escapeKey.Value = appliedEscapeKey;
+                    Say("这个按键已用于其他联机操作，已改回 " + appliedEscapeKey + "。");
+                    return;
+                }
+                appliedEscapeKey = escapeKey.Value;
+                ApplyBenchBinding();
+            };
         }
         void NormalizeAssistBindings()
         {

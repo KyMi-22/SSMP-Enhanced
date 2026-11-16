@@ -4,7 +4,7 @@
 
 Silksong Coop 是为《空洞骑士：丝之歌》小队游玩维护的整合项目。SSMP 提供联机，Coop Assist 在原生联机流程上补充进度协作、队友互助、成茧观战、队友传送和外观设置。适配基线为游戏 **1.0.30000** 和 **SSMP 0.4.142**。
 
-当前交付为 **`0.3.0-standard`**，修订 **`20261115-borrow-fix`**，联机标识 **`0.3.0-std3`**。联机前请核对各端版本及修订。发布包在 [Releases](../../releases) 下载：`SSMP-Enhanced-0.3.0-standard.zip`，解压后把 `BepInEx`、`.doorstop_version`、`doorstop_config.ini`、`winhttp.dll` 放到游戏根目录（与游戏 exe 同级）即可，包内已含 BepInEx 5.4.23.4、SSMP 0.4.142、ModMenu 与中文化、DebugMod、I18N、Modlist、UnityHelper、WavLib、皮肤加载器与 Aa轩辕体。11 套皮肤体积约 2.44 GiB，单独发布。安装与回滚细节见 [安装说明](hotreload-docs/Install.md)。
+当前交付为 **`0.3.0-standard`**，修订 **`20261116-review-fixes`**，联机标识 **`0.3.0-std3`**。联机前请核对各端版本及修订。发布包在 [Releases](../../releases) 下载：`SSMP-Enhanced-0.3.0-standard.zip`，解压后把 `BepInEx`、`.doorstop_version`、`doorstop_config.ini`、`winhttp.dll` 放到游戏根目录（与游戏 exe 同级）即可，包内已含 BepInEx 5.4.23.4、SSMP 0.4.142、ModMenu 与中文化、DebugMod、I18N、Modlist、UnityHelper、WavLib、皮肤加载器与 Aa轩辕体。11 套皮肤体积约 2.44 GiB，单独发布。安装与回滚细节见 [安装说明](hotreload-docs/Install.md)。
 
 ## 当前玩法
 

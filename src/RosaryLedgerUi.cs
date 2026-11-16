@@ -96,8 +96,8 @@ namespace Silksong.CoopAssist
             return "队友";
         }
 
-        int BorrowAmount(Purchase current) =>
-            current.Amount > 0 ? current.Amount : Mathf.Max(0, current.Price - SpendableRosaries);
+        // The loan amount is always the shortfall at ask time; the waiting stage shows the stored amount instead.
+        int BorrowAmount(Purchase current) => Mathf.Max(0, current.Price - SpendableRosaries);
 
         void CenterDialog(int id, float height, string title, Action body)
         {
@@ -233,11 +233,10 @@ namespace Silksong.CoopAssist
             else if (current.Request != null) GUILayout.Label("等待队友同意…");
             else foreach (var peer in api.ClientManager.Players)
             {
-                if (!Checked(peer.Id) || !rosaryPeers.ContainsKey(peer.Id)) continue;
+                if (!IsRosaryPeer(peer)) continue;
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(peer.Username);
-                var pooled = current.Mode == RosaryMode.Bench ? RosaryMode.Bench : RosaryMode.Pool;
-                if (GUILayout.Button("攒钱")) AskRosaries(peer, pooled);
+                if (GUILayout.Button("攒钱")) AskRosaries(peer, current.Mode);
                 if (current.Mode != RosaryMode.Bench && LoansOpen && GUILayout.Button("借款")) AskRosaries(peer, RosaryMode.Loan);
                 GUILayout.EndHorizontal();
             }
@@ -292,6 +291,16 @@ namespace Silksong.CoopAssist
                     GUI.DrawTexture(new Rect(line.x, line.center.y, Mathf.Min(line.width, 435), 1), Texture2D.whiteTexture);
                     GUI.color = previous;
                 }
+            }
+            // Loans the lender already paid for but nobody confirmed: visible, and withdrawable.
+            foreach (var pending in Ledger.Transfers.Values.Where(row =>
+                row.Outgoing && row.State == RosaryTransferState.Offered).OrderBy(row => row.Id))
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(pending.Name, ledgerText, GUILayout.Width(108));
+                GUILayout.Label("待对方确认 · " + pending.Amount + " 念珠", ledgerText);
+                if (GUILayout.Button("撤回并退回", ledgerButton)) RefundOfferedLoan(pending, "借款已撤回，念珠已退回。");
+                GUILayout.EndHorizontal();
             }
             GUILayout.EndScrollView();
         }

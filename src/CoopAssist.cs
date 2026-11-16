@@ -222,7 +222,7 @@ namespace Silksong.CoopAssist
             }
         }
 
-        void PeerDisconnected(IClientPlayer player)=>NetworkDiagnostics.ForgetPeer(player.Id);
+        void PeerDisconnected(IClientPlayer player){NetworkDiagnostics.ForgetPeer(player.Id);ForgetRosaryPeer(player.Id);}
         void PeerSceneChanged(IClientPlayer player)=>NetworkDiagnostics.Metrics.ResetSignal(player.Id);
         void SignalSceneChanged(UnityEngine.SceneManagement.Scene previous,UnityEngine.SceneManagement.Scene current)
         {

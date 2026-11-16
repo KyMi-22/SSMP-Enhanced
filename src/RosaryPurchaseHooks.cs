@@ -102,19 +102,26 @@ namespace Silksong.CoopAssist
 
         static void ValidateShopConfirmation(Fsm __1, ref FsmState __2)
         {
-            if (__2?.Name != "Deduct Geo and set PD" || __1.Name != "Confirm Control" ||
-                Plugin?.MapSharingActive != true) return;
+            if (__2?.Name != "Deduct Geo and set PD" || __1.Name != "Confirm Control") return;
             var itemObject = __1.Variables.FindFsmGameObject("Item GameObject")?.Value;
             if (itemObject == null || !itemObject.TryGetComponent<ShopItemStats>(out var stats)) return;
             var item = stats.Item;
+            if (item != null && item.IsPurchased && Plugin?.WasResumedPurchase(item) == true)
+            {
+                if (__1.GetState("Cancel") is FsmState resumed) __2 = resumed;
+                return;
+            }
+            if (Plugin?.MapSharingActive != true) return;
             if (!Money(item) || SpendableRosaries(PlayerData.instance) >= item.Cost ||
                 Plugin.HasRosaryGrant(item, item.Cost)) return;
             if (__1.GetState("Cancel") is FsmState cancel) __2 = cancel;
         }
 
+        // Prefix/transpiler store the payment target here; the paired finalizer reads and clears it on the same thread.
         [ThreadStatic] static RosaryTransfer shopContribution;
         [ThreadStatic] static object paymentTarget;
         [ThreadStatic] static Fsm paymentBench;
+        [ThreadStatic] static (ShopItem Item, RosaryTransfer Row) pendingShopPayment;
 
         static void PayForShopItem(ShopItem __instance, bool __runOriginal)
         {
@@ -128,7 +135,6 @@ namespace Silksong.CoopAssist
             shopContribution = null;
             return ClearPaymentScope(__exception);
         }
-        [ThreadStatic] static (ShopItem Item, RosaryTransfer Row) pendingShopPayment;
 
         static ISimpleShopItem SimpleItem(SimpleShopMenu menu) =>
             SelectedSimpleItem.Invoke(menu, null) as ISimpleShopItem;
@@ -152,10 +158,12 @@ namespace Silksong.CoopAssist
                     simple.ConfirmYes();
                     return true;
                 }
+                // The second parameter is a sub-item index, not the cost; -1 means "no sub item".
                 if (target is ShopItem item && item != null && !item.IsPurchased &&
                     item.CurrencyType == CurrencyType.Money)
                 {
-                    item.SetPurchased(null, item.Cost);
+                    item.SetPurchased(null, -1);
+                    CoopAssistPlugin.Instance?.MarkResumedPurchase(item);
                     return true;
                 }
             }
@@ -399,10 +407,12 @@ namespace Silksong.CoopAssist
 
         static void BindShopPayment(object __instance, object __0)
         {
+            // Cleared on every call: SSMP also reports ordinary purchases here with a null record.
+            var pending = pendingShopPayment;
+            pendingShopPayment = default;
             if (__0 == null || !(Value(__0, "Item") is ShopItem item) ||
                 !(Value(__0, "Flag") is string flag)) return;
-            var row = shopContribution ?? (pendingShopPayment.Item == item ? pendingShopPayment.Row : null);
-            pendingShopPayment = default;
+            var row = shopContribution ?? (pending.Item == item ? pending.Row : null);
             if (row != null && Value(__instance, "_localPurchases") is System.Collections.IDictionary purchases &&
                 purchases[flag] is object interaction)
             {

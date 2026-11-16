@@ -24,7 +24,7 @@ namespace Silksong.CoopAssist
             internal RosaryStage Stage;
             internal float Expires;
             internal RosaryMessage Grant;
-            internal bool LoanCredited;
+
             internal RosaryTransfer LoanRow;
         }
 
@@ -43,18 +43,20 @@ namespace Silksong.CoopAssist
         SceneData rosaryScene;
         PlayerData rosaryPlayer;
         Purchase purchase;
-        bool roomLoans, rosaryDirty, rosarySaving, rosaryFailed, changingWallet, rosaryIdentitySaved;
+        bool roomLoans, rosaryDirty, rosarySaving, rosaryFailed, changingWallet, rosaryIdentitySaved, rosaryHooks;
         float nextRosaryTick, nextRosaryHello, nextRosarySend, nextRosarySave;
         int rosaryGeneration, rosaryPaymentCursor;
         readonly List<RosaryMessage> sendAfterSave = new List<RosaryMessage>();
         RosaryLedger Ledger => rosarySave?.Ledger;
         string RosaryIdentity = "";
         bool LoansOpen => Hosting ? loanSetting.Value : roomLoans;
-        bool RosaryConnected => compatible && appearanceSender != null &&
+        bool RosaryConnected => compatible && rosaryHooks && appearanceSender != null &&
             AppearanceWire.CanSend(api?.NetClient.IsConnected == true, Value(outboundAddon, "Id"));
         bool WalletReady => rosarySave != null && !rosaryFailed && !Loading && !Down && rosaryPlayer != null &&
             rosaryPlayer == PlayerData.instance && rosaryPlayer.health > 0 && !applyingSnapshot && snapshotToken.Length == 0;
         bool CanWriteWallet => WalletReady && !rosarySaving && !NativeSaveBridge.IsWriting();
+        bool RosaryQuiet => rosaryIdentitySaved && !rosaryDirty && !rosarySaving;
+        bool RosaryTradable => RosaryQuiet && CanWriteWallet && RosaryConnected;
         bool WalletSavePending => rosaryDirty || rosarySaving;
         int SpendableRosaries => RosaryPurchaseHooks.SpendableRosaries(rosaryPlayer);
         static long RosaryNow => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -64,7 +66,10 @@ namespace Silksong.CoopAssist
         {
             loanSetting = Config.Bind("Team", "EnableRosaryLoans", true,
                 "Host only: allow rosary loans in this room (F7). Borrowing is offered whenever a purchase falls short.");
-            RosaryPurchaseHooks.Install();
+            // The purchase hooks are optional for the rest of the plugin: a game update must not kill travel or
+            // cocoon features just because one Harmony target moved. Without them the economy stays off.
+            try { RosaryPurchaseHooks.Install(); rosaryHooks = true; }
+            catch (Exception error) { Logger.LogWarning("[Rosaries] Purchase hooks unavailable; rosary features stay off: " + error.Message); }
         }
 
         internal void QueueRosary(ushort peer, RosaryMessage data)
@@ -88,7 +93,7 @@ namespace Silksong.CoopAssist
                 ExpireRosaryAsks();
                 if (RosaryConnected)
                 {
-                    if (WalletReady && rosaryIdentitySaved && !rosaryDirty && !rosarySaving && Time.unscaledTime >= nextRosaryHello)
+                    if (WalletReady && RosaryQuiet && Time.unscaledTime >= nextRosaryHello)
                     {
                         RosaryIdentity = RosaryMessage.Identity(Ledger.Owner, Value(Value(api.ClientManager, "_modSettings"), "AuthKey") as string);
                         SendRosary(NewRosaryMessage(RosaryKind.Hello, id: Ledger.Owner));
@@ -141,9 +146,11 @@ namespace Silksong.CoopAssist
             purchase = null;
             rosaryAsks.Clear();
             rosaryPeers.Clear();
+            // Build the save first: a bad record must leave the player/scene pair uncommitted so the next tick retries.
+            var save = player != null && scene != null ? new RosarySave(scene) : null;
             rosaryPlayer = player;
             rosaryScene = scene;
-            rosarySave = player != null && scene != null ? new RosarySave(scene) : null;
+            rosarySave = save;
             RosaryIdentity = "";
             rosaryIdentitySaved = rosarySave?.Exists == true;
             RosaryPurchaseHooks.ClearPayments();
@@ -181,6 +188,18 @@ namespace Silksong.CoopAssist
         internal void FlushRosaryLedgerForNativeSave()
         {
             if (rosaryDirty && rosarySave != null && rosaryPlayer == PlayerData.instance) rosarySave.Write();
+        }
+
+        // A departing peer keeps no route and no pending grant: return whatever it had not answered yet.
+        internal void ForgetRosaryPeer(ushort peerId)
+        {
+            rosaryPeers.TryGetValue(peerId, out var identity);
+            rosaryPeers.Remove(peerId);
+            rosaryRoutes.Remove(peerId);
+            if (Ledger == null || identity == null) return;
+            foreach (var row in Ledger.Transfers.Values.ToArray())
+                if (row.Outgoing && row.Peer == identity)
+                    RefundOfferedLoan(row, "队友离线，借款已退回 " + row.Amount + " 念珠。");
         }
 
         void ClearRosarySession()
@@ -321,10 +340,19 @@ namespace Silksong.CoopAssist
             return true;
         }
 
+        // One definition of "a teammate we can trade rosaries with", used by both the borrow dialog and the pool panel.
+        bool IsRosaryPeer(IClientPlayer peer) => peer != null && Checked(peer.Id) && rosaryPeers.ContainsKey(peer.Id);
+
+        bool TryRosaryIdentity(ushort peer, out string identity)
+        {
+            identity = null;
+            return Checked(peer) && rosaryPeers.TryGetValue(peer, out identity);
+        }
+
         bool ReadyToAsk(int price) =>
-            CanWriteWallet && !rosaryDirty && rosaryIdentitySaved && RosaryConnected &&
+            RosaryTradable &&
             price > SpendableRosaries && price <= RosaryLedger.MaxAmount &&
-            api.ClientManager.Players.Any(p => Checked(p.Id) && rosaryPeers.ContainsKey(p.Id));
+            api.ClientManager.Players.Any(IsRosaryPeer);
 
         // Borrow the shortfall from one teammate: their wallet pays us, we buy at full price and owe them.
         internal bool BeginRosaryLoan(object target, object menu, int price, string name)
@@ -356,6 +384,7 @@ namespace Silksong.CoopAssist
         void DeclineBorrow()
         {
             var menu = purchase?.Menu;
+            if (purchase != null) SayChat("已取消借款，回到商店。");
             purchase = null;
             if (menu != null) RosaryPurchaseHooks.CloseNativeConfirm(menu);
         }
@@ -363,10 +392,24 @@ namespace Silksong.CoopAssist
 
         internal void LogWarning(string message) => Logger.LogWarning(message);
 
+        // The world-item shop FSM never left its confirm state when we bought directly from the grant callback,
+        // so a second "yes" would pay again. Remember that purchase for a few seconds and turn that re-entry away.
+        object resumedPurchase;
+        float resumedPurchaseAt;
+
+        internal void MarkResumedPurchase(object item)
+        {
+            resumedPurchase = item;
+            resumedPurchaseAt = Time.unscaledTime;
+        }
+
+        internal bool WasResumedPurchase(object item) =>
+            item != null && ReferenceEquals(item, resumedPurchase) && Time.unscaledTime - resumedPurchaseAt < 10;
+
         void AskRosaries(IClientPlayer peer, RosaryMode mode)
         {
             if (!CanWriteWallet || purchase == null || purchase.Request != null ||
-                !rosaryPeers.TryGetValue(peer.Id, out var identity) || !Checked(peer.Id)) return;
+                !TryRosaryIdentity(peer.Id, out var identity)) return;
             int amount = purchase.Price - SpendableRosaries;
             if (amount <= 0) { CancelRosaryPurchase(); return; }
             var message = NewRosaryMessage(RosaryKind.Ask, identity, Guid.NewGuid().ToString("N"));
@@ -388,7 +431,7 @@ namespace Silksong.CoopAssist
 
         void ReceiveRosaryAsk(RosaryMessage message)
         {
-            if (!WalletReady || !Checked(message.Peer) || !rosaryPeers.TryGetValue(message.Peer, out var identity) ||
+            if (!WalletReady || !TryRosaryIdentity(message.Peer, out var identity) ||
                 identity != message.From || (message.Mode == RosaryMode.Loan && !LoansOpen) ||
                 Ledger.Transfers.ContainsKey(message.Id) || rosaryAsks.Count >= 8) return;
             rosaryAsks.TryAdd(message.Id, (message, Time.unscaledTime + 45));
@@ -411,8 +454,8 @@ namespace Silksong.CoopAssist
         void AnswerRosaryAsk(RosaryMessage ask, bool agree)
         {
             if (!rosaryAsks.Remove(ask.Id)) return;
-            if (!agree || !CanWriteWallet || !RosaryConnected || !Checked(ask.Peer) ||
-                !rosaryPeers.TryGetValue(ask.Peer, out var identity) || identity != ask.From ||
+            if (!agree || !CanWriteWallet || !RosaryConnected ||
+                !TryRosaryIdentity(ask.Peer, out var identity) || identity != ask.From ||
                 (ask.Mode == RosaryMode.Loan && !LoansOpen) || SpendableRosaries < ask.Amount)
             {
                 SendRosary(NewRosaryMessage(RosaryKind.Decline, ask.From, ask.Id));
@@ -421,6 +464,7 @@ namespace Silksong.CoopAssist
             }
             var row = MakeTransfer(ask, true);
             row.State = RosaryTransferState.Offered;
+            row.OfferedAt = Time.unscaledTime;
             if (!Ledger.Transfers.TryAdd(row.Id, row)) return;
             ChangeWallet(-row.Amount);
             rosaryDirty = true;
@@ -470,7 +514,6 @@ namespace Silksong.CoopAssist
             row.Due = RosaryNow + RosaryLedger.OverdueSeconds;
             Ledger.Transfers[row.Id] = row;
             ChangeWallet(grant.Amount);
-            current.LoanCredited = true;
             current.LoanRow = row;
             rosaryDirty = true;
             var accepted = NewRosaryMessage(RosaryKind.Accepted, row.Peer, row.Id);
@@ -488,13 +531,28 @@ namespace Silksong.CoopAssist
         {
             var row = MakeTransfer(message, false);
             row.State = RosaryTransferState.Rejected;
-            Ledger.Transfers.Add(row.Id, row);
+            Ledger.Transfers[row.Id] = row;
+            // Tell the lender now instead of waiting for the next grant retry, so it refunds immediately.
+            SendRosary(NewRosaryMessage(RosaryKind.Rejected, message.From, message.Id));
             rosaryDirty = true;
+        }
+
+        // The lender paid but the borrower never confirmed: hand the money back and close the row.
+        void RefundOfferedLoan(RosaryTransfer row, string message)
+        {
+            if (row == null || Ledger == null || !Ledger.Transfers.TryGetValue(row.Id, out var current) ||
+                !current.Outgoing || current.State != RosaryTransferState.Offered) return;
+            if (!CanReceiveRosaries(current.Amount)) return;
+            ChangeWallet(current.Amount);
+            current.State = RosaryTransferState.Rejected;
+            SendRosary(NewRosaryMessage(RosaryKind.Rejected, current.Peer, current.Id));
+            rosaryDirty = true;
+            SayChat(message);
         }
 
         void CancelRosaryPurchase()
         {
-            if (purchase != null && purchase.LoanCredited && purchase.LoanRow != null)
+            if (purchase?.LoanRow != null)
             {
                 // The money already moved, so give it back through the ordinary repayment path.
                 if (CanWriteWallet) RepayRosaries(purchase.LoanRow);
@@ -508,7 +566,7 @@ namespace Silksong.CoopAssist
         void CancelLoanPurchase()
         {
             var menu = purchase?.Menu;
-            if (purchase != null && purchase.LoanCredited && purchase.LoanRow != null && CanWriteWallet)
+            if (purchase?.LoanRow != null && CanWriteWallet)
                 RepayRosaries(purchase.LoanRow);
             purchase = null;
             if (menu != null) RosaryPurchaseHooks.CloseNativeConfirm(menu);
@@ -536,7 +594,7 @@ namespace Silksong.CoopAssist
                 if (!CanReceiveRosaries(row.Amount)) return;
                 row.State = RosaryTransferState.Rejected;
                 ChangeWallet(row.Amount);
-                Say("购买已取消，代付的念珠已退回。");
+                SayChat("购买已取消，代付的念珠已退回。");
             }
             rosaryDirty = true;
         }
@@ -596,7 +654,7 @@ namespace Silksong.CoopAssist
                 if (toll.Personal > 0) ChangeWallet(toll.Personal);
                 if (toll.Contribution != null && Ledger.Transfers.TryGetValue(toll.Contribution, out var row))
                     UndoRosaryShare(row);
-                Say("队友同时解锁了这张长椅，重复支付的念珠已退回。");
+                SayChat("队友同时解锁了这张长椅，重复支付的念珠已退回。");
             }
             Ledger.TollPayments.Remove(toll.Id);
             rosaryDirty = true;
@@ -644,7 +702,7 @@ namespace Silksong.CoopAssist
             {
                 var payment = Ledger.Repay(row, SpendableRosaries, now, out bool newlyOverdue);
                 if (payment != null) ChangeWallet(-payment.Amount);
-                if (newlyOverdue) Say("对 " + row.Name + " 的欠款已逾期，加收 3 念珠，后续余额将优先还款。");
+                if (newlyOverdue) SayChat("对 " + row.Name + " 的欠款已逾期，加收 3 念珠，后续余额将优先还款。");
                 rosaryDirty |= newlyOverdue || payment != null;
             }
         }
@@ -653,11 +711,11 @@ namespace Silksong.CoopAssist
         {
             if (!CanWriteWallet || row.Outgoing || row.Balance <= 0) return;
             var payment = Ledger.Repay(row, SpendableRosaries, RosaryNow, out bool newlyOverdue);
-            if (payment == null) Say("身上的散装念珠不足。");
+            if (payment == null) SayChat("身上的散装念珠不足。");
             else
             {
                 ChangeWallet(-payment.Amount);
-                Say("已交付 " + payment.Amount + " 念珠用于还款。");
+                SayChat("已交付 " + payment.Amount + " 念珠用于还款。");
             }
             rosaryDirty |= newlyOverdue || payment != null;
         }
@@ -677,11 +735,16 @@ namespace Silksong.CoopAssist
             Ledger.Receive(row, payment);
             sendAfterSave.Add(ack);
             rosaryDirty = true;
-            Say((payment.Refund ? "已退回代付的 " : "已收到还款 ") + payment.Amount + " 念珠。");
+            SayChat((payment.Refund ? "已退回代付的 " : "已收到还款 ") + payment.Amount + " 念珠。");
         }
 
         void RetryRosaryTransfers()
         {
+            // A grant nobody answered must not keep the lender's money: return it after two minutes.
+            foreach (var offered in Ledger.Transfers.Values.ToArray())
+                if (offered.Outgoing && offered.State == RosaryTransferState.Offered && offered.OfferedAt > 0 &&
+                    Time.unscaledTime - offered.OfferedAt > 120)
+                    RefundOfferedLoan(offered, "借款长时间没有确认，已退回 " + offered.Amount + " 念珠。");
             foreach (var toll in Ledger.TollPayments.Values.Take(8))
             {
                 var message = NewRosaryMessage(RosaryKind.BenchPaid, RosaryIdentity, toll.Id);

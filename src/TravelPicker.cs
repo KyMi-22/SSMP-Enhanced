@@ -216,7 +216,7 @@ namespace Silksong.CoopAssist
         {
             if(!travelPickerOpen)return;
             float width=Mathf.Min(540,Screen.width-24),height=PickerHeight;
-            GUI.ModalWindow(20327509,new Rect((Screen.width-width)/2,Mathf.Max(12,(Screen.height-height-160)/2),width,height),_=>{
+            GUI.ModalWindow(20327512,new Rect((Screen.width-width)/2,Mathf.Max(12,(Screen.height-height-160)/2),width,height),_=>{
                 GUILayout.Label("↑／↓ 选择　Enter 确认　Esc 取消");
                 GUILayout.Label("“最近”按地图直线距离；标着“异图”的队友在别的场景，仍可请求传送。");
                 pickerScroll=GUILayout.BeginScrollView(pickerScroll,GUILayout.Height(PickerViewportHeight));

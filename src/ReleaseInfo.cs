@@ -6,6 +6,6 @@ namespace Silksong.CoopAssist
         internal const string PluginVersion = "0.3.0";
         internal const string NetworkVersion = PluginVersion + "-std3";
         public const string Version = PluginVersion + "-standard";
-        public const string Revision = "20261115-borrow-fix";
+        public const string Revision = "20261116-review-fixes";
     }
 }

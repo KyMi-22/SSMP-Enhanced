@@ -88,6 +88,12 @@ foreach ($name in $borrowHooks.Keys) {
         if ($null -eq $type -or $method -notin $type.Methods.Name) { $missing.Add("Borrow hook $name.$method") }
     }
 }
+# The resume call passes a sub-item index, not the price: pin the parameter types so a wrong call is caught.
+$setPurchased = $game.MainModule.GetType('ShopItem').Methods | Where-Object Name -EQ SetPurchased | Select-Object -First 1
+$checked++
+if ($null -eq $setPurchased -or ($setPurchased.Parameters.ParameterType.FullName -join '|') -ne 'System.Action|System.Int32') {
+    $missing.Add('ShopItem.SetPurchased(Action,int) parameter types')
+}
 $hero = $game.MainModule.GetType('HeroController')
 $cstate = ($hero.Fields | Where-Object Name -eq 'cState').FieldType.Resolve()
 foreach ($member in @('dead','onGround')) { if ($member -notin $cstate.Fields.Name -and $member -notin $cstate.Properties.Name) { $missing.Add("Hero state $member") } }

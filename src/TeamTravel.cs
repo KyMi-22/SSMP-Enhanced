@@ -155,9 +155,9 @@ namespace Silksong.CoopAssist
                 return;
             }
             var peer=api.ClientManager.GetPlayer(requestPeer);
-            if(peer==null || !peer.IsInLocalScene || MemberDown(requestPeer))
+            if(peer==null || !peer.IsInLocalScene || MemberDown(requestPeer) ||
+               peer.PlayerObject==null || !peer.PlayerObject.activeInHierarchy)
             {EndTravel("队友移动中");return;}
-            if(peer.PlayerObject==null || !peer.PlayerObject.activeInHierarchy){EndTravel("队友移动中");return;}
             var origin=(Vector2)peer.PlayerObject.transform.position;
             // Prefer beside the teammate; verify against LOCAL terrain and hazards after scene load.
             foreach(var offset in new[]{1.5f,-1.5f,2.5f,-2.5f,0f})

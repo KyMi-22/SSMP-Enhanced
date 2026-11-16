@@ -33,7 +33,14 @@ try{
     foreach($pair in @(@('TickRosaryDialog','AskRosaries'),@('DrawBorrowDialog','CenterDialog'),@('CreditLoan','ChangeWallet'),@('CreditLoan','ResumePurchase'),@('CancelLoanPurchase','CloseNativeConfirm'))){
         if($pair[1] -notin (Calls $pair[0])){throw "Missing borrow wiring: $($pair -join ' -> ')"}
     }
-    if('set_enabled' -in (Calls 'CreditLoan')){throw 'Crediting must only move the wallet'}
+    foreach($name in @('SettleGrant','RepayRosaries','ReceivePayment')){
+        if('SayChat' -notin (Calls $name)){throw "Rosary result must report through native chat: $name"}
+    }
+    $make=$plugin.Methods|Where-Object Name -EQ 'MakeTransfer'
+    if('Outgoing' -notin @($make.Body.Instructions|Where-Object {$_.Operand -is [Mono.Cecil.FieldReference]}|ForEach-Object {$_.Operand.Name})){
+        throw 'MakeTransfer must mark the lender side as outgoing'
+    }
+    if('RefundOfferedLoan' -notin (Calls 'RetryRosaryTransfers')){throw 'Unanswered loans must expire back to the lender'}
     $after=$plugin.Methods|Where-Object Name -EQ AfterSaveLoaded
     $instructions=@($after.Body.Instructions)
     $identityBranch=@($instructions|Where-Object {$_.OpCode.Name -like 'bne.un*' -and $_.Previous.OpCode.Name -eq 'ldarg.2' -and $_.Previous.Previous.Operand.Name -eq 'pendingResyncReload'})

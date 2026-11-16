@@ -1,6 +1,12 @@
-﻿$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path -Parent $PSScriptRoot
 $outDir = Join-Path $taskRoot 'build'
+$pluginDll = Join-Path $outDir 'Silksong.CoopAssist.dll'
+if (-not (Test-Path -LiteralPath $pluginDll)) { throw 'Run tools/Build.ps1 first' }
+$newestSource = Get-ChildItem -LiteralPath (Join-Path $taskRoot 'src') -Filter '*.cs' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if ($newestSource -and $newestSource.LastWriteTime -gt (Get-Item -LiteralPath $pluginDll).LastWriteTime) {
+    throw "build/Silksong.CoopAssist.dll is older than $($newestSource.Name); run tools/Build.ps1 first"
+}
 $references = 'C:\Program Files\dotnet\packs\Microsoft.NETCore.App.Ref\9.0.17\ref\net9.0'
 $options = @('/nostdlib+', '/target:exe', '/langversion:latest', "/out:`"$outDir\ArrivalTests.dll`"")
 $options += Get-ChildItem $references -Filter '*.dll' | ForEach-Object { "/reference:`"$($_.FullName)`"" }

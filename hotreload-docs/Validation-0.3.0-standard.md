@@ -1,6 +1,6 @@
 # 0.3.0-standard 验证记录
 
-修订 `20261115-borrow-fix`。基于 SSMP 0.4.142 和游戏 1.0.30000。SSMP 联机标识为 `0.3.0-std3`（与上一修订相同，封包未变）。最近核对：2026-11-15（香港时间）。
+修订 `20261116-review-fixes`。基于 SSMP 0.4.142 和游戏 1.0.30000。SSMP 联机标识为 `0.3.0-std3`（与上一修订相同，封包未变）。最近核对：2026-11-15（香港时间）。
 
 ## 操作
 
@@ -17,7 +17,7 @@
 
 - 重建当前修订通过，保留已有的 Newtonsoft.Json 引用统一提示。生成的 DLL 与本机游戏目录中的 DLL 字节一致。
 - 全量回归通过：953 项联机封包与账本检查、745 项键位与选人检查、58 项快捷键与提示检查、567 项传送路由与封包检查、1,003 项资源和个人钱包检查、1,079 项祈愿／物品／纹章／巨门检查、348 项地图与三人模拟。
-- 原生接口静态检查通过，共检查 3,281 项引用，无缺失。本轮把 `DarknessRegion` 的绑定换成 `HeroController.vignette`、`HeroController.heroLight`、`HeroLight.vignette` 三个成员，并静态确认：等待期会读取这组贴片的渲染器、按原状态隐藏并在结束时恢复、同一画面重新打开时再次压住。原生接口检查另外钉住借款链路用到的 `DialogueYesNoBox.Open`、`ShopItem.SetPurchased`、`SimpleShopMenu.ConfirmYes/ConfirmNo`；静态检查确认借款提问走游戏确认框、同意后给买家加钱并继续购买、拒绝时关掉确认框回到商品列表。键位检查同时确认观战名单按同场景筛选、`CocoonWatch*`／`CocoonFrame*` 等跨图类型已不在产物中、封包只剩 8 个标识。上述检查验证规则、封包与接口，画面效果仍需实机确认。
+- 原生接口静态检查通过，共检查 3,282 项引用，无缺失。本轮把 `DarknessRegion` 的绑定换成 `HeroController.vignette`、`HeroController.heroLight`、`HeroLight.vignette` 三个成员，并静态确认：等待期会读取这组贴片的渲染器、按原状态隐藏并在结束时恢复、同一画面重新打开时再次压住。原生接口检查另外钉住借款链路用到的 `DialogueYesNoBox.Open`、`ShopItem.SetPurchased`、`SimpleShopMenu.ConfirmYes/ConfirmNo`；静态检查确认借款提问走游戏确认框、同意后给买家加钱并继续购买、拒绝时关掉确认框回到商品列表。键位检查同时确认观战名单按同场景筛选、`CocoonWatch*`／`CocoonFrame*` 等跨图类型已不在产物中、封包只剩 8 个标识。上述检查验证规则、封包与接口，画面效果仍需实机确认。
 
 ## 为什么这一版换了做法
 
@@ -37,7 +37,7 @@ Coop Assist DLL 的 SHA-256：
 
 | 文件 | SHA-256 |
 | --- | --- |
-| Coop Assist DLL（本机构建、两份包与游戏目录一致） | `5C63A528AB3FC81913061C37E92D0937B17BC2A5353C707D64FC295B33AE41D6` |
+| Coop Assist DLL（本机构建、两份包与游戏目录一致） | `99681E9698E7EB24B5D07E1EDF65BC38616608CEF6D4097076E9F1DAF2E30025` |
 
 两份包的 `Manifest.json` 都记为 `0.3.0-standard`／`20261115-vignette-brightness`，`CoopAssistSha256` 与上表一致，`GameTested`／`MultiplayerTested` 仍如实写 `false`。包文件本身的哈希记在迭代简报的工作区表格里：包内这份是打包前快照，写进自己的包哈希永远对不上，以 `Manifest.json` 为准。`Rollback/` 里的 `CoopAssist-0.3.0-standard-20261114-same-scene-spectate.zip` 只含上一修订的 DLL（152 KB），解压覆盖即可退回。旧修订的整包已归档到 `dist/archive/`。
 

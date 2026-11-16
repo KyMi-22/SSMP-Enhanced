@@ -15,6 +15,8 @@ namespace Silksong.CoopAssist
         public long Due;
         public bool Outgoing, Overdue, Hidden, Refunded, SettleAfterNativeRefund;
         public RosaryTransferState State;
+        // Session clock when the lender put the money down; 0 for records written by older builds.
+        public float OfferedAt;
         public int Balance => Amount + (Overdue ? 3 : 0) - Repaid;
     }
 
