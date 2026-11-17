@@ -8,7 +8,7 @@
 | --- | --- |
 | 项目定位 | 《空洞骑士：丝之歌》小队合作联机增强；SSMP 负责基础联机，Coop Assist 扩展队伍协作、个人设置和故障恢复。工作区为 `D:/Game/Hollow Knight Silksong-Mod`，游戏基线为 **1.0.30000**，SSMP 固定 **0.4.142**。 |
 | 交付版本 | **`0.3.1-standard / 20261117-review2`**。游戏模组列表显示 `Silksong Coop Assist (Standard): 0.3.1`，SSMP 附加组件标识为 `CoopAssist v0.3.1-std3`。版号升位后联机标识随之变化，0.3.0 的客机进不了 0.3.1 的房间，各端需一起更新。 |
-| 安装包 | [SSMP-Enhanced-0.3.1-standard.zip](dist/SSMP-Enhanced-0.3.1-standard.zip) 13,523,472 字节，`F995C9C2…A8274F06`，GitHub Releases 已用同一版号覆盖为最新附件：含 BepInEx、SSMP、ModMenu 与中文化、DebugMod 等运行时文件与字体，不含游戏本体与皮肤。Coop Assist DLL 为 `897F0D3B…0882F7C8`，与 `build/` 和本机游戏目录一致。 |
+| 安装包 | [SSMP-Enhanced-0.3.1-standard.zip](dist/SSMP-Enhanced-0.3.1-standard.zip) 13,523,958 字节，`8267CF38…230DEBE7`，GitHub Releases 已用同一版号覆盖为复审修正版：含 BepInEx、SSMP、ModMenu 与中文化、DebugMod 等运行时文件与字体，不含游戏本体与皮肤。Coop Assist DLL 为 `0B252AA1…7892D249`，与 `build/` 和本机游戏目录一致。 |
 | 本机联机证据 | 2026-11-13 的房主日志确认加载当前修订，并记录到同联机标识的客机连接、大厅准备和双人存档校验完成。原先提供的两份队友日志内容相同，都来自 `0.3.0-preview / 20261112-grand-gate-maps`，可用于回看旧行为。详见 [验证记录](hotreload-docs/Validation-0.3.0-standard.md)。 |
 | 验证结论 | 当前源码构建、全量回归、原生接口检查通过（3,282 项引用）。房主日志仍属于上一修订；借款到账与自动购买、成茧等待期的提亮、快捷键与传送提示需要逐项实机复测。 |
 
