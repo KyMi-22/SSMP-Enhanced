@@ -6,6 +6,6 @@ namespace Silksong.CoopAssist
         internal const string PluginVersion = "0.3.1";
         internal const string NetworkVersion = PluginVersion + "-std3";
         public const string Version = PluginVersion + "-standard";
-        public const string Revision = "20261117-overdue-loans";
+        public const string Revision = "20261117-review2";
     }
 }

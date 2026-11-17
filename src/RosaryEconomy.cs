@@ -111,7 +111,7 @@ namespace Silksong.CoopAssist
                 }
                 if (purchase != null && (!WalletReady || !RosaryConnected || Scene != purchase.Scene ||
                     Time.unscaledTime > purchase.Expires)) CancelRosaryPurchase();
-                if (CanWriteWallet && !rosaryDirty && rosarySave.Exists && Ledger.HasDebts) CollectDueRosaries();
+                if (purchase == null && CanWriteWallet && !rosaryDirty && rosarySave.Exists && Ledger.HasDebts) CollectDueRosaries();
                 if (RosaryConnected && CanWriteWallet && !rosarySave.Exists && Ready && Playing)
                     rosaryDirty = true;
                 if (CanWriteWallet && rosaryDirty && Time.unscaledTime >= nextRosarySave) SaveRosaries();
@@ -151,6 +151,7 @@ namespace Silksong.CoopAssist
             rosaryPlayer = player;
             rosaryScene = scene;
             rosarySave = save;
+            if (save != null && save.Migrated) save.Write();
             RosaryIdentity = "";
             rosaryIdentitySaved = rosarySave?.Exists == true;
             RosaryPurchaseHooks.ClearPayments();
@@ -464,7 +465,6 @@ namespace Silksong.CoopAssist
             }
             var row = MakeTransfer(ask, true);
             row.State = RosaryTransferState.Offered;
-            row.OfferedAt = Time.unscaledTime;
             if (!Ledger.Transfers.TryAdd(row.Id, row)) return;
             ChangeWallet(-row.Amount);
             rosaryDirty = true;
@@ -582,8 +582,22 @@ namespace Silksong.CoopAssist
 
         void SettleGrant(RosaryMessage message)
         {
-            if (!CanWriteWallet || !Ledger.Transfers.TryGetValue(message.Id, out var row) || !row.Outgoing ||
-                row.Peer != message.From || row.State != RosaryTransferState.Offered) return;
+            if (!CanWriteWallet || !Ledger.Transfers.TryGetValue(message.Id, out var row)) return;
+            if (!row.Outgoing)
+            {
+                // The lender withdrew before our acceptance landed: close the loan and hand the credited money back.
+                if (message.Kind != RosaryKind.Rejected || row.Mode != RosaryMode.Loan || row.Refunded ||
+                    row.State != RosaryTransferState.Accepted || row.Peer != message.From) return;
+                var giveBack = Math.Min(row.Balance, Math.Max(0, SpendableRosaries));
+                if (giveBack > 0) ChangeWallet(-giveBack);
+                row.Refunded = true;
+                row.Repaid = row.Amount;
+                if (purchase?.LoanRow == row) purchase = null;
+                rosaryDirty = true;
+                SayChat("放款方已撤回这笔借款，已退回 " + giveBack + " 念珠。");
+                return;
+            }
+            if (row.Peer != message.From || row.State != RosaryTransferState.Offered) return;
             if (message.Kind == RosaryKind.Accepted)
             {
                 row.State = RosaryTransferState.Accepted;
@@ -700,34 +714,41 @@ namespace Silksong.CoopAssist
         void CollectDueRosaries()
         {
             var now = RosaryNow;
-            foreach (var row in Ledger.Debts.Where(row => !row.Outgoing && row.Balance > 0).ToArray())
-                if (row.Refresh(now))
-                {
-                    rosaryDirty = true;
-                    SayChat("「" + row.Name + "」的欠款已逾期：逾期利息 +3 念珠，累计 " + row.Interest + " 念珠。");
-                }
+            // Interest is announced even when the wallet cannot pay yet, so a broke player knows why the debt grew.
+            foreach (var row in Ledger.OpenDebts.ToArray())
+            {
+                var added = row.AccrueInterest(now);
+                if (added == 0) continue;
+                rosaryDirty = true;
+                SayChat("「" + row.Name + "」的欠款已逾期：逾期利息 +" + added + " 念珠，累计 " + row.Interest + " 念珠。");
+            }
+            if (!CanWriteWallet) return;
             foreach (var row in Ledger.DueDebts(now))
             {
-                if (!CanWriteWallet) return;
-                var payment = Ledger.Repay(row, SpendableRosaries, now, out _);
+                var payment = PayFromLooseRosaries(row, now);
                 if (payment == null) break;
-                ChangeWallet(-payment.Amount);
-                rosaryDirty = true;
+                SayChat("逾期未还，已自动归还 " + payment.Amount + " 颗散装念珠给「" + row.Name + "」。");
             }
+        }
+
+        // Debits the wallet and schedules the ledger save for one repayment, so no caller can forget either.
+        RosaryPayment PayFromLooseRosaries(RosaryTransfer row, long now)
+        {
+            var payment = Ledger.Repay(row, SpendableRosaries, now, out _);
+            if (payment == null) return null;
+            ChangeWallet(-payment.Amount);
+            rosaryDirty = true;
+            return payment;
         }
 
         void RepayRosaries(RosaryTransfer row)
         {
-            row.Refresh(RosaryNow);
+            // The row may have reached the next period since the last tick; the guard and the balance need it.
+            row.AccrueInterest(RosaryNow);
             if (!CanWriteWallet || row.Outgoing || row.Balance <= 0) return;
-            var payment = Ledger.Repay(row, SpendableRosaries, RosaryNow, out _);
+            var payment = PayFromLooseRosaries(row, RosaryNow);
             if (payment == null) SayChat("身上的散装念珠不足。");
-            else
-            {
-                ChangeWallet(-payment.Amount);
-                SayChat("已把 " + payment.Amount + " 颗散装念珠还给「" + row.Name + "」。");
-            }
-            rosaryDirty |= payment != null;
+            else SayChat("已把 " + payment.Amount + " 颗散装念珠还给「" + row.Name + "」。");
         }
 
         void ReceivePayment(RosaryMessage message)
@@ -740,8 +761,12 @@ namespace Silksong.CoopAssist
                 Id = message.Id, Transfer = row.Id, Amount = message.Amount, Interest = message.Flag,
                 Refund = message.Kind == RosaryKind.Refund
             };
-            row.Refresh(RosaryNow);
-            if (!Ledger.CanReceive(row, payment) || !CanReceiveRosaries(payment.Amount)) return;
+            row.AccrueInterest(RosaryNow);
+            if (!Ledger.CanReceive(row, payment)) return;
+            // Credit only the outstanding debt: an over-large payment must not create rosaries, and the payer
+            // has already been debited for whatever it sent.
+            payment.Amount = Math.Min(payment.Amount, row.Balance);
+            if (payment.Amount <= 0 || !CanReceiveRosaries(payment.Amount)) { SendRosary(ack); return; }
             ChangeWallet(payment.Amount);
             Ledger.Receive(row, payment);
             sendAfterSave.Add(ack);
@@ -751,11 +776,7 @@ namespace Silksong.CoopAssist
 
         void RetryRosaryTransfers()
         {
-            // A grant nobody answered must not keep the lender's money: return it after two minutes.
-            foreach (var offered in Ledger.Transfers.Values.ToArray())
-                if (offered.Outgoing && offered.State == RosaryTransferState.Offered && offered.OfferedAt > 0 &&
-                    Time.unscaledTime - offered.OfferedAt > 120)
-                    RefundOfferedLoan(offered, "借款长时间没有确认，已退回 " + offered.Amount + " 念珠。");
+
             foreach (var toll in Ledger.TollPayments.Values.Take(8))
             {
                 var message = NewRosaryMessage(RosaryKind.BenchPaid, RosaryIdentity, toll.Id);

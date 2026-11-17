@@ -15,24 +15,24 @@ namespace Silksong.CoopAssist
         public long Due;
         public bool Outgoing, Overdue, Hidden, Refunded, SettleAfterNativeRefund;
         public RosaryTransferState State;
-        // Session clock when the lender put the money down; 0 for records written by older builds.
-        public float OfferedAt;
         // One period per OverdueSeconds after Due; each adds 3 rosaries, and the next period adds another 3.
         public int OverduePeriods;
-        public int Interest => 3 * Math.Max(OverduePeriods, Overdue ? 1 : 0);
+        public int Interest => RosaryLedger.OverdueInterest * Math.Max(OverduePeriods, Overdue ? 1 : 0);
         public int Balance => Amount + Interest - Repaid;
 
         internal int PeriodsAt(long now) =>
             Due <= 0 || now < Due ? 0 : 1 + (int)((now - Due) / RosaryLedger.OverdueSeconds);
 
-        // Accrues every period that has passed. Returns true when new interest was added.
-        internal bool Refresh(long now)
+        // Accrues every period that has passed and returns the interest it added. A settled row stays settled.
+        internal int AccrueInterest(long now)
         {
+            if (Amount + Interest - Repaid <= 0) return 0;
             var periods = Math.Max(PeriodsAt(now), Overdue ? 1 : 0);
-            if (periods <= OverduePeriods) return false;
+            if (periods <= OverduePeriods) return 0;
+            var added = (periods - OverduePeriods) * RosaryLedger.OverdueInterest;
             OverduePeriods = periods;
             Overdue = true;
-            return true;
+            return added;
         }
     }
 
@@ -54,6 +54,7 @@ namespace Silksong.CoopAssist
     {
         public const int MaxAmount = 1000000;
         public const int OverdueSeconds = 600;
+        public const int OverdueInterest = 3;
         public string Owner = Guid.NewGuid().ToString("N");
         public Dictionary<string, RosaryTransfer> Transfers = new Dictionary<string, RosaryTransfer>(StringComparer.Ordinal);
         public Dictionary<string, RosaryPayment> Payments = new Dictionary<string, RosaryPayment>(StringComparer.Ordinal);
@@ -62,15 +63,16 @@ namespace Silksong.CoopAssist
 
         public IEnumerable<RosaryTransfer> Debts => Transfers.Values.Where(row =>
             row.Mode == RosaryMode.Loan && row.State == RosaryTransferState.Accepted);
-        public bool HasDebts => Debts.Any(row => !row.Outgoing && row.Balance > 0);
+        public IEnumerable<RosaryTransfer> OpenDebts => Debts.Where(row => !row.Outgoing && row.Balance > 0);
+        public bool HasDebts => OpenDebts.Any();
 
-        public IEnumerable<RosaryTransfer> DueDebts(long now) => Debts.Where(row =>
-            !row.Outgoing && row.Balance > 0 && (row.Due <= now || row.SettleAfterNativeRefund))
+        public IEnumerable<RosaryTransfer> DueDebts(long now) => OpenDebts.Where(row =>
+            (row.Due > 0 && row.Due <= now) || row.SettleAfterNativeRefund)
             .OrderBy(row => row.Due).ThenBy(row => row.Id);
 
         public RosaryPayment Repay(RosaryTransfer loan, int available, long now, out bool becameOverdue)
         {
-            becameOverdue = loan.Refresh(now);
+            becameOverdue = loan.AccrueInterest(now) > 0;
             int amount = Math.Min(Math.Max(0, available), Math.Max(0, loan.Balance));
             if (amount <= 0) return null;
             loan.Repaid += amount;
@@ -99,9 +101,10 @@ namespace Silksong.CoopAssist
             if (!row.Outgoing || row.State != RosaryTransferState.Accepted || row.Refunded ||
                 Receipts.Contains(payment.Id) || payment.Amount <= 0) return false;
             if (payment.Refund) return row.Mode != RosaryMode.Loan && payment.Amount == row.Amount;
-            if (row.Mode != RosaryMode.Loan || (payment.Interest && row.Due == 0)) return false;
-            // One period of slack: the payer may have crossed a period boundary a moment earlier.
-            return payment.Amount <= row.Balance + 3;
+            if (row.Mode != RosaryMode.Loan) return false;
+            // Accept whatever the payer handed over; the receiver credits only what it still owes, so an
+            // inflated payment cannot mint rosaries here, and a legitimate late payment is never rejected.
+            return true;
         }
 
         public void Receive(RosaryTransfer row, RosaryPayment payment)
@@ -110,11 +113,11 @@ namespace Silksong.CoopAssist
             if (payment.Refund)
             {
                 row.Refunded = true;
-                row.Repaid = row.Amount + (row.Overdue ? 3 : 0);
+                row.Repaid = row.Amount + row.Interest;
                 return;
             }
             if (payment.Interest && row.OverduePeriods == 0) { row.OverduePeriods = 1; row.Overdue = true; }
-            row.Repaid += payment.Amount;
+            row.Repaid = Math.Min(row.Amount + row.Interest, row.Repaid + payment.Amount);
         }
     }
 

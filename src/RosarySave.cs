@@ -12,6 +12,8 @@ namespace Silksong.CoopAssist
         string key;
         internal RosaryLedger Ledger { get; }
         internal bool Exists => key != null;
+        // True when an older ledger was upgraded and has to be written back once.
+        internal bool Migrated { get; private set; }
 
         internal RosarySave(SceneData scene)
         {
@@ -31,6 +33,24 @@ namespace Silksong.CoopAssist
                 JsonConvert.DeserializeObject<RosaryLedger>(Encoding.UTF8.GetString(Convert.FromBase64String(key.Substring(3))));
             if (Ledger == null || !RosaryMessage.Key(Ledger.Owner) || Ledger.Transfers == null ||
                 Ledger.Payments == null || Ledger.Receipts == null) throw new InvalidOperationException("Invalid rosary ledger");
+            // Older saves carried only the flat "overdue" flag and some had no deadline at all. Upgrade them once:
+            // one period keeps the old +3, and a missing deadline starts a fresh term instead of being due forever.
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            foreach (var row in Ledger.Transfers.Values)
+            {
+                if (row.Mode != RosaryMode.Loan) continue;
+                if (row.Overdue && row.OverduePeriods == 0)
+                {
+                    row.OverduePeriods = 1;
+                    if (row.Due > 0) row.Due = now;
+                    Migrated = true;
+                }
+                if (row.Due <= 0)
+                {
+                    row.Due = now + RosaryLedger.OverdueSeconds;
+                    Migrated = true;
+                }
+            }
         }
 
         internal void Write()

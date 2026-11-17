@@ -269,18 +269,25 @@ namespace Silksong.CoopAssist
             if (GUILayout.Button("取消")) CancelRosaryPurchase();
         }
 
-        // "剩余 09:58" before the deadline, "逾期 02:13 · 利息 3" after it.
-        static string DebtStatus(RosaryTransfer row)
+        // The header states the rule from the same constants the ledger applies.
+        static string LoanTerms =>
+            "逾期利息：" + RosaryLedger.OverdueInterest + " 念珠／每 " + RosaryLedger.OverdueSeconds / 60 +
+            " 分钟　·　借款期限：" + RosaryLedger.OverdueSeconds / 60 + "min　·　逾期后自动用散装念珠归还";
+
+        // Only the time cell here: "待收/已结清" already sits in the repayment cell next to it.
+        static string DebtStatus(RosaryTransfer row, long now)
         {
-            if (row.Due <= 0) return row.Outgoing ? "待收" : "";
-            var left = row.Due - RosaryNow;
-            if (row.Outgoing) return left > 0 ? "待收" : "待收 · 已逾期";
+            if (row.Balance <= 0 || row.Due <= 0) return "";
+            var left = row.Due - now;
             if (left > 0) return (left <= 60 ? "即将逾期 " : "剩余 ") + Clock(left);
             return "逾期 " + Clock(-left) + " · 利息 " + row.Interest;
         }
 
-        static string Clock(long seconds) =>
-            (seconds / 60) + ":" + (seconds % 60).ToString("00");
+        static string Clock(long seconds)
+        {
+            if (seconds >= 3600) return (seconds / 3600) + ":" + (seconds / 60 % 60).ToString("00") + ":" + (seconds % 60).ToString("00");
+            return (seconds / 60) + ":" + (seconds % 60).ToString("00");
+        }
 
         void DrawRosaryLedger(int id)
         {
@@ -296,7 +303,7 @@ namespace Silksong.CoopAssist
             GUILayout.Label("状态", ledgerText, GUILayout.Width(150));
             GUILayout.Label("还款", ledgerText);
             GUILayout.EndHorizontal();
-            GUILayout.Label("逾期利息：3 念珠／每 10 分钟　·　逾期时间上限：10min　·　逾期后自动用散装念珠归还", ledgerText);
+            GUILayout.Label(LoanTerms, ledgerText);
             ledgerScroll = GUILayout.BeginScrollView(ledgerScroll);
             foreach (var row in Ledger.Debts.Where(row => !row.Hidden)
                 .OrderByDescending(row => row.Due).ThenByDescending(row => row.Id))
@@ -305,10 +312,11 @@ namespace Silksong.CoopAssist
                 var position = GUILayout.TextField(row.Place ?? "", 128, ledgerEdit, GUILayout.Width(140));
                 if (position != row.Place && CanWriteWallet) { row.Place = position; rosaryDirty = true; }
                 GUILayout.Label(row.Name, ledgerText, GUILayout.Width(108));
-                if (!row.Outgoing) row.Refresh(RosaryNow);
+                var now = RosaryNow;
+                row.AccrueInterest(now);
                 GUILayout.Label(row.Outgoing ? "—" : row.Balance.ToString(), ledgerText, GUILayout.Width(62));
                 GUILayout.Label(row.Outgoing ? row.Amount.ToString() : "—", ledgerText, GUILayout.Width(62));
-                GUILayout.Label(DebtStatus(row), ledgerText, GUILayout.Width(150));
+                GUILayout.Label(DebtStatus(row, now), ledgerText, GUILayout.Width(150));
                 if (row.Balance > 0)
                 {
                     if (row.Outgoing) GUILayout.Label("待收 " + row.Balance + " · 已收 " + row.Repaid, ledgerText);

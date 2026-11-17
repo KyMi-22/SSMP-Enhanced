@@ -12,17 +12,31 @@ namespace Silksong.CoopAssist
         static readonly MethodInfo SetCursor =
             AccessTools.Method(typeof(InputHandler), "SetCursorVisible", new[] { typeof(bool) });
         static bool shown;
+        static float nextAssert;
 
         internal static void Tick(bool wanted)
         {
-            if (wanted == shown) return;
-            shown = wanted;
-            try
+            if (InputHandler.Instance == null || SetCursor == null) return;
+            if (!wanted)
             {
-                if (InputHandler.Instance != null && SetCursor != null)
-                    SetCursor.Invoke(InputHandler.Instance, new object[] { wanted });
+                if (!shown) return;
+                shown = false;
+                // A native menu owns the pointer while paused; do not hide it behind the pause screen.
+                if (global::GameManager.instance != null &&
+                    (global::GameManager.instance.isPaused || global::GameManager.instance.IsNonGameplayScene())) return;
+                Invoke(false);
+                return;
             }
-            catch (Exception) { }
+            // Re-assert at a low rate: the game may have hidden the pointer without going through our prefix.
+            if (shown && Time.unscaledTime < nextAssert) return;
+            nextAssert = Time.unscaledTime + .5f;
+            if (Invoke(true)) shown = true;
+        }
+
+        static bool Invoke(bool show)
+        {
+            try { SetCursor.Invoke(InputHandler.Instance, new object[] { show }); return true; }
+            catch (Exception) { return false; }
         }
     }
 }

@@ -21,6 +21,14 @@ foreach ($file in @($ssmpRelative, 'build\Silksong.CoopAssist.dll')) {
         try { if ($null -eq $member.Resolve()) { $missing.Add($member.FullName) } }
         catch { $missing.Add($member.FullName + ' : ' + $_.Exception.InnerException.Message) }
     }
+    if ($file -like '*CoopAssist.dll') {
+        # The DebugMod-specific pointer tweak was removed on purpose; keep it out.
+        $debugStrings = @($assembly.MainModule.Types | ForEach-Object { $_.Methods } | Where-Object { $_.HasBody } |
+            ForEach-Object { $_.Body.Instructions } |
+            Where-Object { $_.OpCode.Name -eq 'ldstr' -and "$($_.Operand)" -like '*DebugMod*' })
+        $checked++
+        if ($debugStrings.Count) { $missing.Add('DebugMod integration must stay out of the plugin') }
+    }
     $assembly.Dispose()
 }
 $ssmp = [Mono.Cecil.AssemblyDefinition]::ReadAssembly((Join-Path $taskRoot $ssmpRelative), $parameters)

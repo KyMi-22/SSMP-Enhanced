@@ -40,7 +40,7 @@ try{
     if('Outgoing' -notin @($make.Body.Instructions|Where-Object {$_.Operand -is [Mono.Cecil.FieldReference]}|ForEach-Object {$_.Operand.Name})){
         throw 'MakeTransfer must mark the lender side as outgoing'
     }
-    if('RefundOfferedLoan' -notin (Calls 'RetryRosaryTransfers')){throw 'Unanswered loans must expire back to the lender'}
+    if('RefundOfferedLoan' -notin (Calls 'ForgetRosaryPeer')){throw 'A departing lender must get its unclaimed loan back'}
     $after=$plugin.Methods|Where-Object Name -EQ AfterSaveLoaded
     $instructions=@($after.Body.Instructions)
     $identityBranch=@($instructions|Where-Object {$_.OpCode.Name -like 'bne.un*' -and $_.Previous.OpCode.Name -eq 'ldarg.2' -and $_.Previous.Previous.Operand.Name -eq 'pendingResyncReload'})

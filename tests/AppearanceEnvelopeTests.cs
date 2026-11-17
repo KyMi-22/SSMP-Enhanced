@@ -141,6 +141,27 @@ static class AppearanceEnvelopeTests
         Check(debtor.Repay(second, 0, due + RosaryLedger.OverdueSeconds, out late) == null && second.Interest == 6,
             "second overdue period adds another three, on top of the first");
         Check(second.Balance == 46, "compounding interest stays on the balance");
+        var paid = new RosaryTransfer { Id = Guid.NewGuid().ToString("N"), Amount = 10, Due = due, Mode = RosaryMode.Loan,
+            State = RosaryTransferState.Accepted };
+        debtor.Transfers[paid.Id] = paid;
+        Check(debtor.Repay(paid, 10, due - 1, out late)?.Amount == 10 && paid.Balance == 0,
+            "a loan settles before the deadline");
+        Check(paid.AccrueInterest(due + RosaryLedger.OverdueSeconds * 5) == 0 && paid.Balance == 0,
+            "a settled loan never accrues interest again");
+
+        var noDeadline = new RosaryTransfer { Id = Guid.NewGuid().ToString("N"), Amount = 5, Due = 0,
+            Mode = RosaryMode.Loan, State = RosaryTransferState.Accepted };
+        debtor.Transfers[noDeadline.Id] = noDeadline;
+        Check(!debtor.DueDebts(due).Contains(noDeadline) && noDeadline.Interest == 0,
+            "a loan without a deadline is not force-collected");
+
+        var mirror = new RosaryTransfer { Id = Guid.NewGuid().ToString("N"), Amount = 10, Due = due, Outgoing = true,
+            Mode = RosaryMode.Loan, State = RosaryTransferState.Accepted };
+        lender.Transfers[mirror.Id] = mirror;
+        var overpay = new RosaryPayment { Id = Guid.NewGuid().ToString("N"), Transfer = mirror.Id, Amount = 99 };
+        Check(lender.CanReceive(mirror, overpay), "an over-large payment is accepted rather than lost");
+        lender.Receive(mirror, overpay);
+        Check(mirror.Balance == 0 && mirror.Repaid == 10, "receiving clamps to the outstanding debt");
         lender.Receive(credit, remainder);
         Check(credit.Balance == 0 && credit.Repaid == 43, "both ends agree on principal and interest");
         Check(debtor.Refund(debt) == null, "native duplicate refund does not cancel previous repayments");
