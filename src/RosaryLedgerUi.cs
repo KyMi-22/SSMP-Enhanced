@@ -275,12 +275,12 @@ namespace Silksong.CoopAssist
             " 分钟　·　借款期限：" + RosaryLedger.OverdueSeconds / 60 + "min　·　逾期后自动用散装念珠归还";
 
         // Only the time cell here: "待收/已结清" already sits in the repayment cell next to it.
-        static string DebtStatus(RosaryTransfer row, long now)
+        string DebtStatus(RosaryTransfer row)
         {
-            if (row.Balance <= 0 || row.Due <= 0) return "";
-            var left = row.Due - now;
-            if (left > 0) return (left <= 60 ? "即将逾期 " : "剩余 ") + Clock(left);
-            return "逾期 " + Clock(-left) + " · 利息 " + row.Interest;
+            if (row.Balance <= 0) return "";
+            if (row.Remaining <= 0) return "逾期 " + Clock(row.OverdueElapsed) + " · 利息 " + row.Interest;
+            var text = (row.Remaining <= 60 ? "即将逾期 " : "剩余 ") + Clock(row.Remaining);
+            return PeerOnline(row.Peer) ? text : "冻结 · " + text;
         }
 
         static string Clock(long seconds)
@@ -306,17 +306,16 @@ namespace Silksong.CoopAssist
             GUILayout.Label(LoanTerms, ledgerText);
             ledgerScroll = GUILayout.BeginScrollView(ledgerScroll);
             foreach (var row in Ledger.Debts.Where(row => !row.Hidden)
-                .OrderByDescending(row => row.Due).ThenByDescending(row => row.Id))
+                .OrderBy(row => row.Remaining).ThenBy(row => row.Id))
             {
                 GUILayout.BeginHorizontal();
                 var position = GUILayout.TextField(row.Place ?? "", 128, ledgerEdit, GUILayout.Width(140));
                 if (position != row.Place && CanWriteWallet) { row.Place = position; rosaryDirty = true; }
                 GUILayout.Label(row.Name, ledgerText, GUILayout.Width(108));
-                var now = RosaryNow;
-                row.AccrueInterest(now);
+
                 GUILayout.Label(row.Outgoing ? "—" : row.Balance.ToString(), ledgerText, GUILayout.Width(62));
                 GUILayout.Label(row.Outgoing ? row.Amount.ToString() : "—", ledgerText, GUILayout.Width(62));
-                GUILayout.Label(DebtStatus(row, now), ledgerText, GUILayout.Width(150));
+                GUILayout.Label(DebtStatus(row), ledgerText, GUILayout.Width(150));
                 if (row.Balance > 0)
                 {
                     if (row.Outgoing) GUILayout.Label("待收 " + row.Balance + " · 已收 " + row.Repaid, ledgerText);

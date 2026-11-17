@@ -33,28 +33,25 @@ namespace Silksong.CoopAssist
                 JsonConvert.DeserializeObject<RosaryLedger>(Encoding.UTF8.GetString(Convert.FromBase64String(key.Substring(3))));
             if (Ledger == null || !RosaryMessage.Key(Ledger.Owner) || Ledger.Transfers == null ||
                 Ledger.Payments == null || Ledger.Receipts == null) throw new InvalidOperationException("Invalid rosary ledger");
-            // Older saves carried only the flat "overdue" flag and some had no deadline at all. Upgrade them once:
-            // one period keeps the old +3, and a missing deadline starts a fresh term instead of being due forever.
+            // Older saves stored only an absolute deadline. Convert it to the online clock once: keep whatever was
+            // left, or keep a single overdue period, and start a fresh term for records that never had one.
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             foreach (var row in Ledger.Transfers.Values)
             {
-                if (row.Mode != RosaryMode.Loan) continue;
-                if (row.Overdue && row.OverduePeriods == 0)
-                {
-                    row.OverduePeriods = 1;
-                    if (row.Due > 0) row.Due = now;
-                    Migrated = true;
-                }
-                if (row.Due <= 0)
-                {
-                    row.Due = now + RosaryLedger.OverdueSeconds;
-                    Migrated = true;
-                }
+                if (row.Mode != RosaryMode.Loan || row.Remaining != 0 || row.OverdueElapsed != 0) continue;
+                if (row.Due > now) row.Remaining = (int)Math.Min(int.MaxValue, row.Due - now);
+                else if (row.Due > 0) { row.Remaining = 0; row.Overdue = true; }
+                else row.Remaining = RosaryLedger.OverdueSeconds;
+                Migrated = true;
             }
         }
 
         internal void Write()
         {
+            // Keep the legacy absolute deadline roughly in step for older builds that still read it.
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            foreach (var row in Ledger.Transfers.Values)
+                if (row.Mode == RosaryMode.Loan) row.Due = now + Math.Max(0, row.Remaining);
             var encoded = "v1:" + Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(Ledger)));
             if (key == encoded) return;
             records.SetValue(new PersistentItemData<int> { SceneName = Scene, ID = encoded, Value = 1 });

@@ -1,6 +1,6 @@
 # 0.3.0-standard 验证记录
 
-修订 `20261117-review2`。基于 SSMP 0.4.142 和游戏 1.0.30000。SSMP 联机标识为 `0.3.1-std3`（随版号升位，封包结构未变，但旧版本会被拒绝）。最近核对：2026-11-15（香港时间）。
+修订 `20261117-offline-freeze`。基于 SSMP 0.4.142 和游戏 1.0.30000。SSMP 联机标识为 `0.3.1-std3`（随版号升位，封包结构未变，但旧版本会被拒绝）。最近核对：2026-11-15（香港时间）。
 
 ## 操作
 
@@ -37,7 +37,7 @@ Coop Assist DLL 的 SHA-256：
 
 | 文件 | SHA-256 |
 | --- | --- |
-| Coop Assist DLL（本机构建、两份包与游戏目录一致） | `0B252AA11B986A3FF89616625FD25123CD48CDD17C0FD6BEE10C8ABB7892D249` |
+| Coop Assist DLL（本机构建、两份包与游戏目录一致） | `D9AB8613F2479B2A8DB6B67F46124496F349AD405B6D8DA258E7E52C20A811DC` |
 
 两份包的 `Manifest.json` 都记为 `0.3.0-standard`／`20261115-vignette-brightness`，`CoopAssistSha256` 与上表一致，`GameTested`／`MultiplayerTested` 仍如实写 `false`。包文件本身的哈希记在迭代简报的工作区表格里：包内这份是打包前快照，写进自己的包哈希永远对不上，以 `Manifest.json` 为准。`Rollback/` 里的 `CoopAssist-0.3.0-standard-20261114-same-scene-spectate.zip` 只含上一修订的 DLL（152 KB），解压覆盖即可退回。旧修订的整包已归档到 `dist/archive/`。
 

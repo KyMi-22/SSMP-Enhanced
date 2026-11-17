@@ -12,27 +12,35 @@ namespace Silksong.CoopAssist
         public string Id, Peer, Name, Place;
         public RosaryMode Mode;
         public int Amount, Repaid;
+        // Counts only time both players are online: leaving the room freezes it, returning resumes it.
+        // Zero means "not initialised"; older saves are migrated from Due on load.
+        public int Remaining;
+        public int OverdueElapsed;
+        // Kept for builds that still read the old absolute deadline; refreshed whenever the ledger is written.
         public long Due;
         public bool Outgoing, Overdue, Hidden, Refunded, SettleAfterNativeRefund;
         public RosaryTransferState State;
-        // One period per OverdueSeconds after Due; each adds 3 rosaries, and the next period adds another 3.
-        public int OverduePeriods;
-        public int Interest => RosaryLedger.OverdueInterest * Math.Max(OverduePeriods, Overdue ? 1 : 0);
+        // One interest period per OverdueSeconds overdue; every further period adds another 3.
+        public int Interest => !Overdue ? 0 : RosaryLedger.OverdueInterest * (1 + OverdueElapsed / RosaryLedger.OverdueSeconds);
         public int Balance => Amount + Interest - Repaid;
 
-        internal int PeriodsAt(long now) =>
-            Due <= 0 || now < Due ? 0 : 1 + (int)((now - Due) / RosaryLedger.OverdueSeconds);
-
-        // Accrues every period that has passed and returns the interest it added. A settled row stays settled.
-        internal int AccrueInterest(long now)
+        // Advances the shared online clock. Returns the interest this tick added; a settled row stays settled.
+        internal int Advance(int seconds)
         {
-            if (Amount + Interest - Repaid <= 0) return 0;
-            var periods = Math.Max(PeriodsAt(now), Overdue ? 1 : 0);
-            if (periods <= OverduePeriods) return 0;
-            var added = (periods - OverduePeriods) * RosaryLedger.OverdueInterest;
-            OverduePeriods = periods;
-            Overdue = true;
-            return added;
+            if (seconds <= 0 || Amount + Interest - Repaid <= 0) return 0;
+            var previous = Interest;
+            if (Remaining > 0)
+            {
+                var used = Math.Min(Remaining, seconds);
+                Remaining -= used;
+                seconds -= used;
+            }
+            if (Remaining <= 0)
+            {
+                Overdue = true;
+                OverdueElapsed += seconds;
+            }
+            return Interest - previous;
         }
     }
 
@@ -66,13 +74,12 @@ namespace Silksong.CoopAssist
         public IEnumerable<RosaryTransfer> OpenDebts => Debts.Where(row => !row.Outgoing && row.Balance > 0);
         public bool HasDebts => OpenDebts.Any();
 
-        public IEnumerable<RosaryTransfer> DueDebts(long now) => OpenDebts.Where(row =>
-            (row.Due > 0 && row.Due <= now) || row.SettleAfterNativeRefund)
-            .OrderBy(row => row.Due).ThenBy(row => row.Id);
+        public IEnumerable<RosaryTransfer> DueDebts() => OpenDebts.Where(row =>
+            row.Remaining <= 0 || row.SettleAfterNativeRefund)
+            .OrderBy(row => row.Remaining).ThenBy(row => row.Id);
 
-        public RosaryPayment Repay(RosaryTransfer loan, int available, long now, out bool becameOverdue)
+        public RosaryPayment Repay(RosaryTransfer loan, int available)
         {
-            becameOverdue = loan.AccrueInterest(now) > 0;
             int amount = Math.Min(Math.Max(0, available), Math.Max(0, loan.Balance));
             if (amount <= 0) return null;
             loan.Repaid += amount;
@@ -116,7 +123,7 @@ namespace Silksong.CoopAssist
                 row.Repaid = row.Amount + row.Interest;
                 return;
             }
-            if (payment.Interest && row.OverduePeriods == 0) { row.OverduePeriods = 1; row.Overdue = true; }
+            if (payment.Interest) row.Overdue = true;
             row.Repaid = Math.Min(row.Amount + row.Interest, row.Repaid + payment.Amount);
         }
     }

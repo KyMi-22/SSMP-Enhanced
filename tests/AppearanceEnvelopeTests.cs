@@ -115,48 +115,42 @@ static class AppearanceEnvelopeTests
         var lender = new RosaryLedger();
         var id = Guid.NewGuid().ToString("N");
         var amount = 40;
-        var due = 1000 + RosaryLedger.OverdueSeconds;
-        var debt = new RosaryTransfer { Id = id, Amount = amount, Due = due, Mode = RosaryMode.Loan,
-            State = RosaryTransferState.Accepted, Peer = lender.Owner };
-        var credit = new RosaryTransfer { Id = id, Amount = amount, Due = due, Mode = RosaryMode.Loan,
-            State = RosaryTransferState.Accepted, Peer = debtor.Owner, Outgoing = true };
+        var debt = new RosaryTransfer { Id = id, Amount = amount, Remaining = RosaryLedger.OverdueSeconds,
+            Mode = RosaryMode.Loan, State = RosaryTransferState.Accepted, Peer = lender.Owner };
+        var credit = new RosaryTransfer { Id = id, Amount = amount, Remaining = RosaryLedger.OverdueSeconds,
+            Mode = RosaryMode.Loan, State = RosaryTransferState.Accepted, Peer = debtor.Owner, Outgoing = true };
         debtor.Transfers.Add(id, debt);
         lender.Transfers.Add(id, credit);
-        var beforeDue = debtor.Repay(debt, 12, due - 1, out var late);
-        Check(!late && beforeDue.Amount == 12 && !beforeDue.Interest, "early manual payment carries no interest");
-        var onDue = debtor.Repay(debt, 10, due, out late);
-        Check(late && onDue.Interest && debt.Balance == 21, "single 3-rosary interest after the 10 minute deadline");
-        Check(lender.CanReceive(credit, onDue), "can receive overdue payment before older payment");
-        lender.Receive(credit, onDue);
-        Check(!lender.CanReceive(credit, onDue), "duplicate payment is idempotent");
-        Check(lender.CanReceive(credit, beforeDue), "later receipt accepts earlier principal payment");
-        lender.Receive(credit, beforeDue);
-        var remainder = debtor.Repay(debt, 99, due + 60, out late);
-        Check(!late && remainder.Amount == 21 && debt.Balance == 0, "remaining debt drains only its balance");
-        var second = new RosaryTransfer { Id = Guid.NewGuid().ToString("N"), Amount = 40, Due = due, Mode = RosaryMode.Loan,
-            State = RosaryTransferState.Accepted };
-        debtor.Transfers[second.Id] = second;
-        Check(debtor.Repay(second, 0, due + RosaryLedger.OverdueSeconds - 1, out late) == null && second.Interest == 3,
-            "first period adds three rosaries");
-        Check(debtor.Repay(second, 0, due + RosaryLedger.OverdueSeconds, out late) == null && second.Interest == 6,
-            "second overdue period adds another three, on top of the first");
-        Check(second.Balance == 46, "compounding interest stays on the balance");
-        var paid = new RosaryTransfer { Id = Guid.NewGuid().ToString("N"), Amount = 10, Due = due, Mode = RosaryMode.Loan,
-            State = RosaryTransferState.Accepted };
-        debtor.Transfers[paid.Id] = paid;
-        Check(debtor.Repay(paid, 10, due - 1, out late)?.Amount == 10 && paid.Balance == 0,
-            "a loan settles before the deadline");
-        Check(paid.AccrueInterest(due + RosaryLedger.OverdueSeconds * 5) == 0 && paid.Balance == 0,
+        var early = debtor.Repay(debt, 12);
+        Check(!early.Interest && early.Amount == 12, "early manual payment carries no interest");
+        Check(lender.CanReceive(credit, early), "the lender accepts the principal payment");
+        lender.Receive(credit, early);
+        Check(debt.Advance(300) == 0 && debt.Remaining == 300 && !debt.Overdue,
+            "the clock counts down only while it is ticked");
+        Check(debt.Advance(300) == 3 && debt.Remaining == 0 && debt.Overdue,
+            "reaching the deadline adds the first 3-rosary period");
+        Check(debt.Advance(0) == 0 && debt.Remaining == 0, "a zero tick (both players apart) freezes the clock");
+        var overdue = debtor.Repay(debt, 10);
+        Check(overdue.Interest && debt.Balance == 21, "an overdue payment carries the period interest");
+        Check(lender.CanReceive(credit, overdue), "can receive overdue payment after an older payment");
+        lender.Receive(credit, overdue);
+        Check(!lender.CanReceive(credit, overdue), "duplicate payment is idempotent");
+        var remainder = debtor.Repay(debt, 99);
+        Check(remainder.Amount == 21 && debt.Balance == 0, "remaining debt drains only its balance");
+        Check(debt.Advance(RosaryLedger.OverdueSeconds * 5) == 0 && debt.Balance == 0,
             "a settled loan never accrues interest again");
 
-        var noDeadline = new RosaryTransfer { Id = Guid.NewGuid().ToString("N"), Amount = 5, Due = 0,
-            Mode = RosaryMode.Loan, State = RosaryTransferState.Accepted };
-        debtor.Transfers[noDeadline.Id] = noDeadline;
-        Check(!debtor.DueDebts(due).Contains(noDeadline) && noDeadline.Interest == 0,
-            "a loan without a deadline is not force-collected");
+        var second = new RosaryTransfer { Id = Guid.NewGuid().ToString("N"), Amount = 40,
+            Remaining = RosaryLedger.OverdueSeconds, Mode = RosaryMode.Loan, State = RosaryTransferState.Accepted };
+        debtor.Transfers[second.Id] = second;
+        Check(second.Advance(RosaryLedger.OverdueSeconds) == 3 && second.Interest == 3,
+            "first period adds three rosaries");
+        Check(second.Advance(RosaryLedger.OverdueSeconds) == 3 && second.Interest == 6,
+            "second overdue period adds another three, on top of the first");
+        Check(second.Balance == 46, "compounding interest stays on the balance");
 
-        var mirror = new RosaryTransfer { Id = Guid.NewGuid().ToString("N"), Amount = 10, Due = due, Outgoing = true,
-            Mode = RosaryMode.Loan, State = RosaryTransferState.Accepted };
+        var mirror = new RosaryTransfer { Id = Guid.NewGuid().ToString("N"), Amount = 10, Outgoing = true,
+            Remaining = RosaryLedger.OverdueSeconds, Mode = RosaryMode.Loan, State = RosaryTransferState.Accepted };
         lender.Transfers[mirror.Id] = mirror;
         var overpay = new RosaryPayment { Id = Guid.NewGuid().ToString("N"), Transfer = mirror.Id, Amount = 99 };
         Check(lender.CanReceive(mirror, overpay), "an over-large payment is accepted rather than lost");
@@ -165,7 +159,6 @@ static class AppearanceEnvelopeTests
         lender.Receive(credit, remainder);
         Check(credit.Balance == 0 && credit.Repaid == 43, "both ends agree on principal and interest");
         Check(debtor.Refund(debt) == null, "native duplicate refund does not cancel previous repayments");
-
         var bench = new RosaryTransfer { Id = Guid.NewGuid().ToString("N"), Amount = 15, Mode = RosaryMode.Bench,
             State = RosaryTransferState.Accepted };
         var refund = debtor.Refund(bench);
@@ -184,7 +177,7 @@ static class AppearanceEnvelopeTests
         var ask = new RosaryMessage { Kind = RosaryKind.Ask, Mode = RosaryMode.Loan, From = debtor.Owner,
             To = lender.Owner, Id = id, Amount = amount, Label = "商店", Ref = "圣堡" };
         var payment = new RosaryMessage { Kind = RosaryKind.Payment, Mode = RosaryMode.Loan, From = debtor.Owner,
-            To = lender.Owner, Id = onDue.Id, Ref = id, Amount = onDue.Amount, Flag = true };
+            To = lender.Owner, Id = overdue.Id, Ref = id, Amount = overdue.Amount, Flag = true };
         foreach (var direction in new[] {"ServerUpdatePacket", "ClientUpdatePacket"})
         {
             var batch = new PacketDataCollection<RosaryMessage>();
