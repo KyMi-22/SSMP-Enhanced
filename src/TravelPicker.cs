@@ -45,7 +45,7 @@ namespace Silksong.CoopAssist
         static void BeforePickerCursor(ref bool __0)
         {
             if (Instance == null) return;
-            if (Instance.travelPickerOpen || Instance.optionsOpen || Instance.ledgerOpen || PointerControl.DebugMenuOpen)
+            if (Instance.travelPickerOpen || Instance.optionsOpen || Instance.ledgerOpen)
                 __0 = true;
         }
 

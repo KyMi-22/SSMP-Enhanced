@@ -125,7 +125,7 @@ static class AppearanceEnvelopeTests
         var beforeDue = debtor.Repay(debt, 12, due - 1, out var late);
         Check(!late && beforeDue.Amount == 12 && !beforeDue.Interest, "early manual payment carries no interest");
         var onDue = debtor.Repay(debt, 10, due, out late);
-        Check(late && onDue.Interest && debt.Balance == 21, "single 3-rosary interest after 528 seconds");
+        Check(late && onDue.Interest && debt.Balance == 21, "single 3-rosary interest after the 10 minute deadline");
         Check(lender.CanReceive(credit, onDue), "can receive overdue payment before older payment");
         lender.Receive(credit, onDue);
         Check(!lender.CanReceive(credit, onDue), "duplicate payment is idempotent");
@@ -133,6 +133,14 @@ static class AppearanceEnvelopeTests
         lender.Receive(credit, beforeDue);
         var remainder = debtor.Repay(debt, 99, due + 60, out late);
         Check(!late && remainder.Amount == 21 && debt.Balance == 0, "remaining debt drains only its balance");
+        var second = new RosaryTransfer { Id = Guid.NewGuid().ToString("N"), Amount = 40, Due = due, Mode = RosaryMode.Loan,
+            State = RosaryTransferState.Accepted };
+        debtor.Transfers[second.Id] = second;
+        Check(debtor.Repay(second, 0, due + RosaryLedger.OverdueSeconds - 1, out late) == null && second.Interest == 3,
+            "first period adds three rosaries");
+        Check(debtor.Repay(second, 0, due + RosaryLedger.OverdueSeconds, out late) == null && second.Interest == 6,
+            "second overdue period adds another three, on top of the first");
+        Check(second.Balance == 46, "compounding interest stays on the balance");
         lender.Receive(credit, remainder);
         Check(credit.Balance == 0 && credit.Repaid == 43, "both ends agree on principal and interest");
         Check(debtor.Refund(debt) == null, "native duplicate refund does not cancel previous repayments");

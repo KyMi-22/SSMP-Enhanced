@@ -145,6 +145,7 @@ namespace Silksong.CoopAssist
             foreach(var binding in assistBindings)
                 if(binding.Run!=null && Input.GetKeyDown(binding.Setting.Value)){binding.Run();break;}
         }
+
         bool AssistChatOpen()
         {
             if(api==null)return false;

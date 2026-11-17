@@ -269,20 +269,34 @@ namespace Silksong.CoopAssist
             if (GUILayout.Button("取消")) CancelRosaryPurchase();
         }
 
+        // "剩余 09:58" before the deadline, "逾期 02:13 · 利息 3" after it.
+        static string DebtStatus(RosaryTransfer row)
+        {
+            if (row.Due <= 0) return row.Outgoing ? "待收" : "";
+            var left = row.Due - RosaryNow;
+            if (row.Outgoing) return left > 0 ? "待收" : "待收 · 已逾期";
+            if (left > 0) return (left <= 60 ? "即将逾期 " : "剩余 ") + Clock(left);
+            return "逾期 " + Clock(-left) + " · 利息 " + row.Interest;
+        }
+
+        static string Clock(long seconds) =>
+            (seconds / 60) + ":" + (seconds % 60).ToString("00");
+
         void DrawRosaryLedger(int id)
         {
             GUILayout.BeginHorizontal();
             GUILayout.Label("念珠记账本", ledgerTitle);
             if (GUILayout.Button("合上", ledgerButton, GUILayout.Width(64))) ledgerOpen = false;
             GUILayout.EndHorizontal();
-            GUILayout.Label("逾期时间 8 分 48 秒  ·  逾期加收 3 念珠", ledgerText);
             GUILayout.BeginHorizontal();
             GUILayout.Label("位置", ledgerText, GUILayout.Width(140));
             GUILayout.Label("队友", ledgerText, GUILayout.Width(108));
             GUILayout.Label("欠款", ledgerText, GUILayout.Width(62));
             GUILayout.Label("借款", ledgerText, GUILayout.Width(62));
+            GUILayout.Label("状态", ledgerText, GUILayout.Width(150));
             GUILayout.Label("还款", ledgerText);
             GUILayout.EndHorizontal();
+            GUILayout.Label("逾期利息：3 念珠／每 10 分钟　·　逾期时间上限：10min　·　逾期后自动用散装念珠归还", ledgerText);
             ledgerScroll = GUILayout.BeginScrollView(ledgerScroll);
             foreach (var row in Ledger.Debts.Where(row => !row.Hidden)
                 .OrderByDescending(row => row.Due).ThenByDescending(row => row.Id))
@@ -291,8 +305,10 @@ namespace Silksong.CoopAssist
                 var position = GUILayout.TextField(row.Place ?? "", 128, ledgerEdit, GUILayout.Width(140));
                 if (position != row.Place && CanWriteWallet) { row.Place = position; rosaryDirty = true; }
                 GUILayout.Label(row.Name, ledgerText, GUILayout.Width(108));
+                if (!row.Outgoing) row.Refresh(RosaryNow);
                 GUILayout.Label(row.Outgoing ? "—" : row.Balance.ToString(), ledgerText, GUILayout.Width(62));
                 GUILayout.Label(row.Outgoing ? row.Amount.ToString() : "—", ledgerText, GUILayout.Width(62));
+                GUILayout.Label(DebtStatus(row), ledgerText, GUILayout.Width(150));
                 if (row.Balance > 0)
                 {
                     if (row.Outgoing) GUILayout.Label("待收 " + row.Balance + " · 已收 " + row.Repaid, ledgerText);

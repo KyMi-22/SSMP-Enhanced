@@ -695,29 +695,39 @@ namespace Silksong.CoopAssist
             CollectDueRosaries();
         }
 
+        // Overdue loans: interest accrues every period, and loose rosaries are handed back to the lender
+        // without asking. Rosaries picked up later join the same wallet, so the next tick pays them too.
         void CollectDueRosaries()
         {
             var now = RosaryNow;
+            foreach (var row in Ledger.Debts.Where(row => !row.Outgoing && row.Balance > 0).ToArray())
+                if (row.Refresh(now))
+                {
+                    rosaryDirty = true;
+                    SayChat("「" + row.Name + "」的欠款已逾期：逾期利息 +3 念珠，累计 " + row.Interest + " 念珠。");
+                }
             foreach (var row in Ledger.DueDebts(now))
             {
-                var payment = Ledger.Repay(row, SpendableRosaries, now, out bool newlyOverdue);
-                if (payment != null) ChangeWallet(-payment.Amount);
-                if (newlyOverdue) SayChat("对 " + row.Name + " 的欠款已逾期，加收 3 念珠，后续余额将优先还款。");
-                rosaryDirty |= newlyOverdue || payment != null;
+                if (!CanWriteWallet) return;
+                var payment = Ledger.Repay(row, SpendableRosaries, now, out _);
+                if (payment == null) break;
+                ChangeWallet(-payment.Amount);
+                rosaryDirty = true;
             }
         }
 
         void RepayRosaries(RosaryTransfer row)
         {
+            row.Refresh(RosaryNow);
             if (!CanWriteWallet || row.Outgoing || row.Balance <= 0) return;
-            var payment = Ledger.Repay(row, SpendableRosaries, RosaryNow, out bool newlyOverdue);
+            var payment = Ledger.Repay(row, SpendableRosaries, RosaryNow, out _);
             if (payment == null) SayChat("身上的散装念珠不足。");
             else
             {
                 ChangeWallet(-payment.Amount);
-                SayChat("已交付 " + payment.Amount + " 念珠用于还款。");
+                SayChat("已把 " + payment.Amount + " 颗散装念珠还给「" + row.Name + "」。");
             }
-            rosaryDirty |= newlyOverdue || payment != null;
+            rosaryDirty |= payment != null;
         }
 
         void ReceivePayment(RosaryMessage message)
@@ -730,6 +740,7 @@ namespace Silksong.CoopAssist
                 Id = message.Id, Transfer = row.Id, Amount = message.Amount, Interest = message.Flag,
                 Refund = message.Kind == RosaryKind.Refund
             };
+            row.Refresh(RosaryNow);
             if (!Ledger.CanReceive(row, payment) || !CanReceiveRosaries(payment.Amount)) return;
             ChangeWallet(payment.Amount);
             Ledger.Receive(row, payment);

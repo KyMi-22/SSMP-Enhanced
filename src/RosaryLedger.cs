@@ -17,7 +17,23 @@ namespace Silksong.CoopAssist
         public RosaryTransferState State;
         // Session clock when the lender put the money down; 0 for records written by older builds.
         public float OfferedAt;
-        public int Balance => Amount + (Overdue ? 3 : 0) - Repaid;
+        // One period per OverdueSeconds after Due; each adds 3 rosaries, and the next period adds another 3.
+        public int OverduePeriods;
+        public int Interest => 3 * Math.Max(OverduePeriods, Overdue ? 1 : 0);
+        public int Balance => Amount + Interest - Repaid;
+
+        internal int PeriodsAt(long now) =>
+            Due <= 0 || now < Due ? 0 : 1 + (int)((now - Due) / RosaryLedger.OverdueSeconds);
+
+        // Accrues every period that has passed. Returns true when new interest was added.
+        internal bool Refresh(long now)
+        {
+            var periods = Math.Max(PeriodsAt(now), Overdue ? 1 : 0);
+            if (periods <= OverduePeriods) return false;
+            OverduePeriods = periods;
+            Overdue = true;
+            return true;
+        }
     }
 
     public sealed class RosaryPayment
@@ -37,7 +53,7 @@ namespace Silksong.CoopAssist
     public sealed class RosaryLedger
     {
         public const int MaxAmount = 1000000;
-        public const int OverdueSeconds = 528;
+        public const int OverdueSeconds = 600;
         public string Owner = Guid.NewGuid().ToString("N");
         public Dictionary<string, RosaryTransfer> Transfers = new Dictionary<string, RosaryTransfer>(StringComparer.Ordinal);
         public Dictionary<string, RosaryPayment> Payments = new Dictionary<string, RosaryPayment>(StringComparer.Ordinal);
@@ -54,9 +70,8 @@ namespace Silksong.CoopAssist
 
         public RosaryPayment Repay(RosaryTransfer loan, int available, long now, out bool becameOverdue)
         {
-            becameOverdue = !loan.Overdue && loan.Balance > 0 && loan.Due <= now;
-            if (becameOverdue) loan.Overdue = true;
-            int amount = Math.Min(available, loan.Balance);
+            becameOverdue = loan.Refresh(now);
+            int amount = Math.Min(Math.Max(0, available), Math.Max(0, loan.Balance));
             if (amount <= 0) return null;
             loan.Repaid += amount;
             return AddPayment(loan, amount, loan.Overdue, false);
@@ -85,8 +100,8 @@ namespace Silksong.CoopAssist
                 Receipts.Contains(payment.Id) || payment.Amount <= 0) return false;
             if (payment.Refund) return row.Mode != RosaryMode.Loan && payment.Amount == row.Amount;
             if (row.Mode != RosaryMode.Loan || (payment.Interest && row.Due == 0)) return false;
-            var balance = row.Amount + (row.Overdue || payment.Interest ? 3 : 0) - row.Repaid;
-            return payment.Amount <= balance;
+            // One period of slack: the payer may have crossed a period boundary a moment earlier.
+            return payment.Amount <= row.Balance + 3;
         }
 
         public void Receive(RosaryTransfer row, RosaryPayment payment)
@@ -98,7 +113,7 @@ namespace Silksong.CoopAssist
                 row.Repaid = row.Amount + (row.Overdue ? 3 : 0);
                 return;
             }
-            row.Overdue |= payment.Interest;
+            if (payment.Interest && row.OverduePeriods == 0) { row.OverduePeriods = 1; row.Overdue = true; }
             row.Repaid += payment.Amount;
         }
     }
