@@ -44,6 +44,8 @@ namespace Silksong.CoopAssist
         PlayerData rosaryPlayer;
         Purchase purchase;
         bool roomLoans, rosaryDirty, rosarySaving, rosaryFailed, changingWallet, rosaryIdentitySaved, rosaryHooks;
+        // The loan clock advances in memory; it only piggybacks on a save the game already makes.
+        bool loanClockDirty;
         float nextRosaryTick, nextRosaryHello, nextRosarySend, nextRosarySave;
         int rosaryGeneration, rosaryPaymentCursor;
         readonly List<RosaryMessage> sendAfterSave = new List<RosaryMessage>();
@@ -162,7 +164,10 @@ namespace Silksong.CoopAssist
 
         void SaveRosaries()
         {
+            // One native save per change burst: the ledger can be dirtied by many small events in a frame.
+            nextRosarySave = Time.unscaledTime + 5;
             rosarySave.Write();
+            loanClockDirty = false;
             var generation = rosaryGeneration;
             rosarySaving = true;
             rosaryDirty = false;
@@ -190,7 +195,14 @@ namespace Silksong.CoopAssist
 
         internal void FlushRosaryLedgerForNativeSave()
         {
-            if (rosaryDirty && rosarySave != null && rosaryPlayer == PlayerData.instance) rosarySave.Write();
+            // The game is saving anyway: fold the pending ledger and clock into that snapshot instead of
+            // asking for another save right after it.
+            if ((rosaryDirty || loanClockDirty) && rosarySave != null && rosaryPlayer == PlayerData.instance)
+            {
+                rosarySave.Write();
+                rosaryDirty = false;
+                loanClockDirty = false;
+            }
         }
 
         // A departing peer keeps no route and no pending grant: return whatever it had not answered yet.
@@ -621,10 +633,16 @@ namespace Silksong.CoopAssist
             purchase.Price == price && purchase.Scene == Scene && Time.unscaledTime <= purchase.Expires &&
             SpendableRosaries < price && SpendableRosaries >= price - purchase.Amount;
 
-        internal bool IsFundedBench(object token) => purchase?.Grant != null &&
-            purchase.Mode == RosaryMode.Bench && ReferenceEquals(purchase.Target, token);
+        internal bool IsFundedPurchase(object token) => purchase?.Grant != null &&
+            ReferenceEquals(purchase.Target, token);
 
-        internal void CancelUnusedBenchContribution() => CancelRosaryPurchase();
+        // Only drop a grant that is no longer needed: for a loan the credited rosaries are part of the price,
+        // so cancelling here would repay it and leave the wallet short again.
+        internal bool HasUnusedContribution(int price) =>
+            purchase?.Mode == RosaryMode.Bench && purchase.Grant != null &&
+            SpendableRosaries - purchase.Grant.Amount >= price;
+
+        internal void CancelUnusedContribution(int price) { if (HasUnusedContribution(price)) CancelRosaryPurchase(); }
 
         internal void ExtendBenchConfirmation()
         {
@@ -731,7 +749,8 @@ namespace Silksong.CoopAssist
                 if (added > 0 && !row.Outgoing)
                     SayChat("「" + row.Name + "」的欠款已逾期：逾期利息 +" + added + " 念珠，累计 " + row.Interest + " 念珠。");
             }
-            if (changed) rosaryDirty = true;
+            // Never schedule a save for the clock alone: borrowing and repaying are the only moments that save.
+            if (changed) loanClockDirty = true;
         }
 
         void CollectDueRosaries()
@@ -739,26 +758,28 @@ namespace Silksong.CoopAssist
             if (!CanWriteWallet) return;
             foreach (var row in Ledger.DueDebts())
             {
-                var payment = PayFromLooseRosaries(row);
+                var payment = PayFromLooseRosaries(row, false);
                 if (payment == null) break;
                 SayChat("逾期未还，已自动归还 " + payment.Amount + " 颗散装念珠给「" + row.Name + "」。");
             }
         }
 
-        // Debits the wallet and schedules the ledger save for one repayment, so no caller can forget either.
-        RosaryPayment PayFromLooseRosaries(RosaryTransfer row)
+        // Debits the wallet for one repayment. A manual repayment saves at once; the pickup-driven automatic
+        // one only rides along with the next natural save, so combat pickups never trigger a save each time.
+        RosaryPayment PayFromLooseRosaries(RosaryTransfer row, bool immediate = true)
         {
             var payment = Ledger.Repay(row, SpendableRosaries);
             if (payment == null) return null;
             ChangeWallet(-payment.Amount);
-            rosaryDirty = true;
+            if (immediate) rosaryDirty = true;
+            else loanClockDirty = true;
             return payment;
         }
 
         void RepayRosaries(RosaryTransfer row)
         {
             if (!CanWriteWallet || row.Outgoing || row.Balance <= 0) return;
-            var payment = PayFromLooseRosaries(row);
+            var payment = PayFromLooseRosaries(row, true);
             if (payment == null) SayChat("身上的散装念珠不足。");
             else SayChat("已把 " + payment.Amount + " 颗散装念珠还给「" + row.Name + "」。");
         }

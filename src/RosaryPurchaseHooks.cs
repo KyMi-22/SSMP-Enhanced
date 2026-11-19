@@ -158,6 +158,12 @@ namespace Silksong.CoopAssist
                     simple.ConfirmYes();
                     return true;
                 }
+                // A vendor prompt resumes by pressing its native Yes; the grant is already in the wallet.
+                if (menu is DialogueYesNoBox box && box != null)
+                {
+                    SelectYes.Invoke(box, null);
+                    return true;
+                }
                 // The second parameter is a sub-item index, not the cost; -1 means "no sub item".
                 if (target is ShopItem item && item != null && !item.IsPurchased &&
                     item.CurrencyType == CurrencyType.Money)
@@ -182,6 +188,7 @@ namespace Silksong.CoopAssist
                 if (menu is SimpleShopMenu simple && simple != null && simple.isActiveAndEnabled &&
                     Value(simple, "state")?.ToString() == "Confirm")
                     AccessTools.Method(typeof(SimpleShopMenu), "ConfirmNo", Type.EmptyTypes).Invoke(simple, null);
+                else if (menu is DialogueYesNoBox) DialogueYesNoBox.ForceClose();
             }
             catch (Exception) { }
         }
@@ -220,7 +227,8 @@ namespace Silksong.CoopAssist
 
         internal static bool ConfirmBench(object target)
         {
-            if (!(target is DialogueYesNoBox box) || !(BenchContext(box, out _, out var price) is object token) ||
+            if (!(target is DialogueYesNoBox box) ||
+                !(BenchContext(box, out _, out var price, out var bench) is object token) || bench == null ||
                 Value(token, "items") != null || Value(token, "willGetItem") != null ||
                 Plugin?.HasRosaryGrant(token, price) != true) return false;
             SelectYes.Invoke(box, null);
@@ -229,19 +237,38 @@ namespace Silksong.CoopAssist
 
         static object Value(object instance, string name) => ReflectionCache.Get(instance, name);
 
-        static object BenchContext(DialogueYesNoBox box, out Fsm fsm, out int price)
+        static object BenchContext(DialogueYesNoBox box, out Fsm fsm, out int price, out Fsm bench)
         {
             price = 0;
             fsm = null;
+            bench = null;
             if (!(Value(box, "currentYes") is Action wrapped) || !(Value(wrapped.Target, "yes") is Action yes) ||
                 !(yes.Target is FsmStateAction action)) return null;
             var candidate = action.Fsm;
-            if (FindBench(candidate) == null ||
+            if (candidate?.GameObject == null ||
                 !(Value(wrapped.Target, "currencyType") is CurrencyType currency) || currency != CurrencyType.Money ||
                 !(Value(wrapped.Target, "currencyAmount") is int amount) || amount <= 0) return null;
             fsm = candidate;
+            bench = FindBench(candidate);
             price = amount;
             return wrapped.Target;
+        }
+
+        // The prompt keeps its own object name; map the known vendors, otherwise show it as-is.
+        static string PurchaseName(Fsm fsm, Fsm bench)
+        {
+            if (bench != null) return "解锁付费长椅";
+            var name = fsm?.GameObject != null ? fsm.GameObject.name : "商店";
+            if (name.IndexOf("Rody", StringComparison.OrdinalIgnoreCase) >= 0) return "洛迪的小挑战";
+            if (name.IndexOf("Flea", StringComparison.OrdinalIgnoreCase) >= 0) return "跳蚤秘酿";
+            if (name.IndexOf("Alchemist", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                name.IndexOf("Kilotto", StringComparison.OrdinalIgnoreCase) >= 0) return "补充生质液";
+            return name.Replace("(Clone)", "").Trim();
+        }
+
+        static void CancelFsm(Fsm fsm)
+        {
+            if (fsm != null && fsm.GetState("Cancel") != null) fsm.SetState("Cancel");
         }
 
         static Fsm FindBench(Fsm prompt)
@@ -264,15 +291,18 @@ namespace Silksong.CoopAssist
 
         static void OfferBench(YesNoBox __instance)
         {
-            if (__instance is DialogueYesNoBox box && BenchContext(box, out _, out var price) is object token &&
-                Value(token, "items") == null && Value(token, "willGetItem") == null)
-                Plugin?.OfferRosaryPurchase(token, price, "解锁付费长椅", true, box);
+            if (!(__instance is DialogueYesNoBox box) ||
+                !(BenchContext(box, out var fsm, out var price, out var bench) is object token)) return;
+            // The bench toll only needs a contribution; every other vendor can be paid with a loan.
+            if (bench != null && (Value(token, "items") != null || Value(token, "willGetItem") != null)) return;
+            Plugin?.OfferRosaryPurchase(token, price, PurchaseName(fsm, bench), bench != null, box,
+                bench == null ? box : null);
         }
 
         static void CanPayBench(DialogueYesNoBox __instance, ref string __result)
         {
-            if (!string.IsNullOrEmpty(__result) && BenchContext(__instance, out _, out var price) is object token &&
-                Value(token, "items") == null && Value(token, "willGetItem") == null &&
+            if (!string.IsNullOrEmpty(__result) &&
+                BenchContext(__instance, out _, out var price, out _) is object token &&
                 Plugin?.HasRosaryGrant(token, price) == true) __result = "";
         }
 
@@ -280,17 +310,19 @@ namespace Silksong.CoopAssist
         {
             if (Plugin == null || !(Value(__instance, "yes") is Action yes) ||
                 !(yes.Target is FsmStateAction action) || !(Value(__instance, "currencyAmount") is int cost) ||
-                !Plugin.IsFundedBench(__instance)) return true;
-            if (SpendableRosaries(PlayerData.instance) >= cost)
+                !(Value(__instance, "currencyType") is CurrencyType type) || type != CurrencyType.Money ||
+                !Plugin.IsFundedPurchase(__instance)) return true;
+            var fsm = action.Fsm;
+            if (fsm == null) return true;
+            if (Plugin.HasUnusedContribution(cost))
             {
-                Plugin.CancelUnusedBenchContribution();
+                Plugin.CancelUnusedContribution(cost);
                 return true;
             }
-            var bench = FindBench(action.Fsm);
-            if (bench != null && Plugin.HasRosaryGrant(__instance, cost))
+            if (Plugin.HasRosaryGrant(__instance, cost))
             {
-                BenchConfirmations.Remove(action.Fsm);
-                BenchConfirmations.Add(action.Fsm, new BenchConfirmation { Bench = bench, Token = __instance, Price = cost });
+                BenchConfirmations.Remove(fsm);
+                BenchConfirmations.Add(fsm, new BenchConfirmation { Bench = FindBench(fsm), Token = __instance, Price = cost });
                 Plugin.ExtendBenchConfirmation();
                 return true;
             }
@@ -300,21 +332,22 @@ namespace Silksong.CoopAssist
 
         static bool PayForBench(TakeCurrency __instance)
         {
-            var bench = FindBench(__instance.Fsm);
-            if (!BenchConfirmations.TryGetValue(__instance.Fsm, out var confirmation))
+            var fsm = __instance.Fsm;
+            var bench = FindBench(fsm);
+            if (!BenchConfirmations.TryGetValue(fsm, out var confirmation))
             {
                 if (bench == null) return true;
                 if (__instance.CurrencyType.Value is CurrencyType type && type == CurrencyType.Money &&
                     Plugin?.MapSharingActive == true && SpendableRosaries(PlayerData.instance) < __instance.Amount.Value)
                 {
-                    __instance.Fsm.SetState("Cancel");
+                    CancelFsm(fsm);
                     return false;
                 }
                 paymentBench = bench;
                 return true;
             }
-            BenchConfirmations.Remove(__instance.Fsm);
-            if (Plugin != null && confirmation.Bench == FindBench(__instance.Fsm) &&
+            BenchConfirmations.Remove(fsm);
+            if (Plugin != null && confirmation.Bench == bench &&
                 __instance.CurrencyType.Value is CurrencyType currency && currency == CurrencyType.Money &&
                 __instance.Amount.Value == confirmation.Price)
             {
@@ -326,10 +359,9 @@ namespace Silksong.CoopAssist
                 }
                 if (PlayerData.instance.geo >= confirmation.Price) return true;
             }
-            __instance.Fsm.SetState("Cancel");
+            CancelFsm(fsm);
             return false;
         }
-
         static IEnumerable<CodeInstruction> RouteGeoPayment(IEnumerable<CodeInstruction> code) =>
             ReplaceCharge(code, nameof(CurrencyManager.TakeGeo), nameof(ChargeGeo));
 

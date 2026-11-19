@@ -1,14 +1,14 @@
-# 0.3.1-standard 安装和使用
+# 0.3.2-standard 安装和使用
 
-先退出游戏，所有端安装 0.3.1-standard（20261116-review-fixes）。用 Manifest.json 或启动日志核对各端的完整版本与修订。
+先退出游戏，所有端安装 0.3.2-standard（20261120-vendor-borrow）。用 Manifest.json 或启动日志核对各端的完整版本与修订。
 
-主菜单左上角的完整模组列表会显示 `Silksong Coop Assist (Standard): 0.3.1`。SSMP 的附加组件校验提示中会显示 `CoopAssist v0.3.1-std3`。旧修订需要更新后才能加入该房间。
+主菜单左上角的完整模组列表会显示 `Silksong Coop Assist (Standard): 0.3.2`。SSMP 的附加组件校验提示中会显示 `CoopAssist v0.3.2-std3`。旧修订需要更新后才能加入该房间。
 
 ## 安装与回滚
 
-干净游戏：从 Releases 下载 `SSMP-Enhanced-0.3.1-standard.zip`，把包内的 `BepInEx`、`.doorstop_version`、`doorstop_config.ini`、`winhttp.dll` 放到游戏根目录，与 Hollow Knight Silksong.exe 同级。包内已含 BepInEx、SSMP、ModMenu、DebugMod、中文本地化、Modlist 与字体，不含游戏本体文件，游戏版本需为 1.0.30000。
+干净游戏：从 Releases 下载 `SSMP-Enhanced-0.3.2-standard.zip`，把包内的 `BepInEx`、`.doorstop_version`、`doorstop_config.ini`、`winhttp.dll` 放到游戏根目录，与 Hollow Knight Silksong.exe 同级。包内已含 BepInEx、SSMP、ModMenu、DebugMod、中文本地化、Modlist 与字体，不含游戏本体文件，游戏版本需为 1.0.30000。
 
-已有合作版：用同一份 `SSMP-Enhanced-0.3.1-standard.zip` 的 `BepInEx` 覆盖到游戏根目录即可，包内已带同一份 `Fonts/AaXuanYuanTi-2.ttf`。不要删除个人配置、皮肤和存档。同步目录内嵌 DLL，不另装 Python 或 JSON。
+已有合作版：用同一份 `SSMP-Enhanced-0.3.2-standard.zip` 的 `BepInEx` 覆盖到游戏根目录即可，包内已带同一份 `Fonts/AaXuanYuanTi-2.ttf`。不要删除个人配置、皮肤和存档。同步目录内嵌 DLL，不另装 Python 或 JSON。
 
 需要回滚时，所有端一起换回上一版的 `SSMP-Enhanced-<版本>.zip`，覆盖 `BepInEx` 即可。内部更新包的 `Rollback/` 里也保留了上一修订的 DLL，可作为单文件回退。先让各端结清借款和待发退款，再一起更换版本。
 

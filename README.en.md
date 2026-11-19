@@ -4,13 +4,13 @@ English · [简体中文](README.md)
 
 Silksong Coop is a co-op enhancement package for small-group play in *Hollow Knight: Silksong*. SSMP provides the networking; Coop Assist adds progress sharing, teammate help, cocoon spectating, teammate travel and appearance settings on top of the native flow. Target baseline: game **1.0.30000** with **SSMP 0.4.142**.
 
-Current release: **`0.3.1-standard`**, revision **`20261116-review-fixes`**, network id **`0.3.1-std3`**. All players must run the same version and revision. Download from [Releases](../../releases): grab `SSMP-Enhanced-0.3.1-standard.zip` and drop its contents into the game folder — see below.
+Current release: **`0.3.2-standard`**, revision **`20261120-vendor-borrow`**, network id **`0.3.2-std3`**. All players must run the same version and revision. Download from [Releases](../../releases): grab `SSMP-Enhanced-0.3.2-standard.zip` and drop its contents into the game folder — see below.
 
 ## Install
 
 1. Game must be version **1.0.30000**. Close the game.
-2. Unzip `SSMP-Enhanced-0.3.1-standard.zip` and copy `BepInEx/`, `.doorstop_version`, `doorstop_config.ini` and `winhttp.dll` into the game root, next to `Hollow Knight Silksong.exe`.
-3. Start the game. The mod list in the top-left of the main menu should show `Silksong Coop Assist (Standard): 0.3.1`, and SSMP's addon check should show `v0.3.1-std3`.
+2. Unzip `SSMP-Enhanced-0.3.2-standard.zip` and copy `BepInEx/`, `.doorstop_version`, `doorstop_config.ini` and `winhttp.dll` into the game root, next to `Hollow Knight Silksong.exe`.
+3. Start the game. The mod list in the top-left of the main menu should show `Silksong Coop Assist (Standard): 0.3.2`, and SSMP's addon check should show `v0.3.2-std3`.
 4. Check that every player's version and revision match before joining.
 
 The archive already contains BepInEx 5.4.23.4, SSMP 0.4.142, ModMenu 0.8.0 with its Chinese localization, DebugMod 1.1.2, I18N, Modlist, UnityHelper, WavLib, the skin loader and the AaXuanYuanTi font. Nothing else to install, and no game files are included. SSMP's per-install security files (`cert.cer`, `key.pem`, `ban`/`whitelist` lists) are generated on first host start and are intentionally not shipped.

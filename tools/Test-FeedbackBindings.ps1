@@ -1,4 +1,4 @@
-param([string]$GameRoot='D:\Game\Hollow Knight Silksong',[string]$ExpectedVersion='0.3.1-standard',[string]$ExpectedNetworkVersion='0.3.1-std3')
+param([string]$GameRoot='D:\Game\Hollow Knight Silksong',[string]$ExpectedVersion='0.3.2-standard',[string]$ExpectedNetworkVersion='0.3.2-std3')
 $ErrorActionPreference='Stop'
 $taskRoot=Split-Path -Parent $PSScriptRoot
 $nativePath=Join-Path $GameRoot 'BepInEx\plugins\SSMP\SSMP.dll'
